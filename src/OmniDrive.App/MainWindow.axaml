@@ -33,19 +33,13 @@
         </StackPanel>
       </Grid>
     </Border>
-    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
-      <Border Grid.Row="0" Background="#191620" BorderBrush="#302A39" BorderThickness="0,0,0,1" Padding="24,16">
-        <Grid ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center">
-          <StackPanel Spacing="4"><TextBlock Text="OmniDrive" FontSize="24" FontWeight="Bold"/><TextBlock Text="Gerencie arquivos de diferentes serviços em um só lugar." FontSize="12" Classes="muted"/></StackPanel>
-          <TextBox Grid.Column="1" Classes="search" Width="420" Watermark="Buscar arquivos e pastas..." TextChanged="Search_TextChanged" Margin="16,0"/>
-          <Border Grid.Column="2" Width="44" Height="44" Background="#33263F" CornerRadius="13" Margin="8,0,0,0" BorderBrush="#5B3C72" BorderThickness="1"><TextBlock Text="OD" Foreground="#E5C9FF" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-        </Grid>
-      </Border>
-      <Grid Grid.Row="1" ColumnDefinitions="*,300">
-        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="24,22,16,16">
-          <Grid Grid.Row="0" ColumnDefinitions="*" RowDefinitions="Auto,Auto" RowSpacing="7">
+    <Grid Grid.Column="1" RowDefinitions="*,Auto">
+      <Grid Grid.Row="0" ColumnDefinitions="*,300">
+        <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="7">
             <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,10,0,0">
+            <TextBox Grid.Column="1" Classes="search" Width="420" Watermark="Buscar arquivos e pastas..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,0,0"/>
+            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*" Margin="0,10,0,0">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Classes="ghost" Click="Back_Click" IsEnabled="False" x:Name="BackButton" Content="← Voltar"/>
                 <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
@@ -54,7 +48,7 @@
               <Button Grid.Column="1" HorizontalAlignment="Right" Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button>
             </Grid>
           </Grid>
-          <Border Grid.Row="1" Classes="panel" Padding="0">
+          <Border Grid.Row="1" Classes="panel" Padding="0" VerticalAlignment="Stretch">
             <Grid RowDefinitions="Auto,*">
               <Border BorderBrush="#332D3D" BorderThickness="0,0,0,1" Padding="14,12">
                 <Grid ColumnDefinitions="34,*,105,130,26" ColumnSpacing="8">
@@ -102,7 +96,7 @@
           </Grid>
         </Border>
       </Grid>
-      <Border Grid.Row="2" Background="#191620" BorderBrush="#302A39" BorderThickness="0,1,0,0" Padding="20,9">
+      <Border Grid.Row="1" Background="#191620" BorderBrush="#302A39" BorderThickness="0,1,0,0" Padding="20,9">
         <Grid ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse Width="7" Height="7" Fill="#E5A94D" VerticalAlignment="Center"/><TextBlock x:Name="StatusText" Text="Nenhum serviço conectado" Classes="muted" FontSize="11" VerticalAlignment="Center"/></StackPanel><TextBlock Grid.Column="1" Text="Fila de transferências: 0" Classes="muted" FontSize="11" VerticalAlignment="Center"/></Grid>
       </Border>
     </Grid>
