@@ -53,25 +53,11 @@ public partial class MainWindow : Window
         if (sender is not Button selected)
             return;
 
-        foreach (var button in FindButtons(this))
-            button.Classes.Remove("selected");
-
+        OverviewNav.Classes.Remove("selected");
+        CloudDriveNav.Classes.Remove("selected");
+        TrashNav.Classes.Remove("selected");
+        SettingsNav.Classes.Remove("selected");
         selected.Classes.Add("selected");
-    }
-
-    private static System.Collections.Generic.IEnumerable<Button> FindButtons(Control root)
-    {
-        if (root is Button button)
-            yield return button;
-
-        foreach (var child in root.GetVisualChildren())
-        {
-            if (child is Control control)
-            {
-                foreach (var nested in FindButtons(control))
-                    yield return nested;
-            }
-        }
     }
 
     private void New_Click(object? sender, RoutedEventArgs e)
