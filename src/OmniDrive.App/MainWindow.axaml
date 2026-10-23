@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniDrive.App.MainWindow"
+        Title="OmniDrive"
+        Width="1100"
+        Height="720"
+        MinWidth="800"
+        MinHeight="520"
+        WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,*" ColumnDefinitions="240,*">
+    <Border Grid.Row="0" Grid.ColumnSpan="2" Padding="20,14"
+            Background="{DynamicResource SystemAccentColor}">
+      <TextBlock Text="OmniDrive" FontSize="22" FontWeight="SemiBold"
+                 Foreground="White" />
+    </Border>
+
+    <Border Grid.Row="1" Grid.Column="0" Padding="16"
+            BorderBrush="{DynamicResource ThemeBorderLowBrush}" BorderThickness="0,0,1,0">
+      <StackPanel Spacing="12">
+        <TextBlock Text="ARMAZENAMENTOS" FontSize="11" FontWeight="Bold" Opacity="0.65" />
+        <Button Content="Telegram" HorizontalContentAlignment="Left" IsEnabled="False" />
+        <TextBlock Text="Mais provedores poderão ser adicionados aqui."
+                   TextWrapping="Wrap" Opacity="0.65" FontSize="12" />
+      </StackPanel>
+    </Border>
+
+    <Grid Grid.Row="1" Grid.Column="1" Margin="28" RowDefinitions="Auto,Auto,*">
+      <TextBlock Text="Seu armazenamento, em um só lugar"
+                 FontSize="26" FontWeight="SemiBold" />
+      <TextBlock Grid.Row="1" Margin="0,10,0,24"
+                 Text="A base do OmniDrive está pronta para receber a primeira integração."
+                 TextWrapping="Wrap" Opacity="0.7" />
+      <Border Grid.Row="2" Padding="24" CornerRadius="10"
+              BorderBrush="{DynamicResource ThemeBorderLowBrush}" BorderThickness="1">
+        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="Nenhuma conta conectada" FontSize="18" FontWeight="SemiBold"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="A conexão com o Telegram será habilitada na próxima etapa."
+                     TextWrapping="Wrap" TextAlignment="Center" MaxWidth="420" Opacity="0.7" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>
