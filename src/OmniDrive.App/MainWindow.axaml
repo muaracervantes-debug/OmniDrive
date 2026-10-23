@@ -22,12 +22,12 @@
         </StackPanel>
         <StackPanel Grid.Row="1" Spacing="6">
           <TextBlock Text="ESPAÇO DE TRABALHO" Classes="muted" FontSize="10" FontWeight="Bold" Margin="10,0,0,8"/>
-          <Button Classes="nav" Click="Overview_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▦" FontSize="17"/><TextBlock Text="Visão geral" VerticalAlignment="Center"/></StackPanel></Button>
-          <Button Classes="nav selected" Click="CloudDrive_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▤" FontSize="17"/><TextBlock Text="Drive na nuvem" VerticalAlignment="Center"/></StackPanel></Button>
-          <Button Classes="nav" Click="Trash_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▱" FontSize="18"/><TextBlock Text="Lixeira" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="OverviewNav" Classes="nav" Click="Overview_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▦" FontSize="17"/><TextBlock Text="Visão geral" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="CloudDriveNav" Classes="nav selected" Click="CloudDrive_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▤" FontSize="17"/><TextBlock Text="Drive na nuvem" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="TrashNav" Classes="nav" Click="Trash_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▱" FontSize="18"/><TextBlock Text="Lixeira" VerticalAlignment="Center"/></StackPanel></Button>
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="8">
-          <Button Classes="nav" Click="Settings_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="⚙" FontSize="17"/><TextBlock Text="Configurações" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="SettingsNav" Classes="nav" Click="Settings_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="⚙" FontSize="17"/><TextBlock Text="Configurações" VerticalAlignment="Center"/></StackPanel></Button>
           <Border Classes="panel" Padding="12"><StackPanel Spacing="7"><TextBlock Text="PRIVACIDADE EM PRIMEIRO LUGAR" FontSize="10" FontWeight="Bold" Foreground="#D7B1FF"/><TextBlock Text="Credenciais e sessões devem permanecer protegidas no dispositivo." FontSize="11" Classes="muted" TextWrapping="Wrap"/></StackPanel></Border>
           <TextBlock Text="OmniDrive • Prévia da interface" Classes="muted" FontSize="10" Margin="4,4,0,0"/>
         </StackPanel>
