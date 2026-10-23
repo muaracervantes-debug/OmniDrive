@@ -37,8 +37,12 @@ OmniDrive/
 - **Capacidades explícitas:** as operações disponíveis variam por serviço e item.
 - **Modelos independentes:** a interface não depende de tipos do Telegram.
 - **Operações assíncronas:** rede e transferências não devem bloquear a interface.
-- **Segurança:** credenciais e sessões ficam fora do controle de versão.
+- **Integridade dos arquivos:** validar transferências, preservar origens e evitar sobrescritas silenciosas.
+- **Desempenho:** streaming, paginação, concorrência limitada e carregamento sob demanda.
+- **Segurança:** credenciais e sessões fora do controle de versão, tratamento seguro de dados e dependências mantidas.
 - **Testabilidade:** a lógica comum pode ser testada sem contas reais.
+
+As regras obrigatórias estão detalhadas em [docs/engineering-principles.md](docs/engineering-principles.md).
 
 ## Executar
 
