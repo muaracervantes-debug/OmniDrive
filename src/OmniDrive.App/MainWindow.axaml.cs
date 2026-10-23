@@ -84,7 +84,8 @@ public partial class MainWindow : Window
 
         menu.PlacementTarget = button;
         menu.Placement = PlacementMode.Bottom;
-        menu.IsOpen = true;
+        button.ContextMenu = menu;
+        menu.Open(button);
     }
 
     private void ShowProviderRequired(string operation) =>
