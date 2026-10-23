@@ -97,7 +97,7 @@
                     <Button Grid.Column="2" Classes="action" Padding="12,8" Content="Configurar" IsEnabled="False" Opacity="0.65"/>
                   </Grid>
                 </Border>
-                <Border BorderBrush="#41334F" BorderThickness="1" BorderDashArray="5,3" CornerRadius="12" Padding="20">
+                <Border BorderBrush="#41334F" BorderThickness="1" CornerRadius="12" Padding="20">
                   <StackPanel HorizontalAlignment="Center" Spacing="8"><TextBlock Text="＋" FontSize="26" Foreground="#C084FC" HorizontalAlignment="Center"/><TextBlock Text="Adicione outro provedor" FontWeight="SemiBold"/><TextBlock Text="A arquitetura foi preparada para múltiplos serviços." FontSize="11" Classes="muted" TextAlignment="Center"/></StackPanel>
                 </Border>
               </StackPanel>
