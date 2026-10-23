@@ -36,31 +36,25 @@
     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
       <Border Grid.Row="0" Background="#191620" BorderBrush="#302A39" BorderThickness="0,0,0,1" Padding="24,16">
         <Grid ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center">
-          <StackPanel Spacing="4"><TextBlock Text="OmniDrive" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Gerencie arquivos de diferentes serviços em um só lugar." FontSize="12" Classes="muted"/></StackPanel>
-          <TextBox Grid.Column="1" Classes="search" Width="270" Watermark="Buscar arquivos e pastas..." TextChanged="Search_TextChanged" Margin="12,0"/>
-          <Border Grid.Column="2" Width="40" Height="40" Background="#33263F" CornerRadius="13" Margin="8,0,0,0"><TextBlock Text="OD" Foreground="#E5C9FF" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <StackPanel Spacing="4"><TextBlock Text="OmniDrive" FontSize="24" FontWeight="Bold"/><TextBlock Text="Gerencie arquivos de diferentes serviços em um só lugar." FontSize="12" Classes="muted"/></StackPanel>
+          <TextBox Grid.Column="1" Classes="search" Width="420" Watermark="Buscar arquivos e pastas..." TextChanged="Search_TextChanged" Margin="16,0"/>
+          <Border Grid.Column="2" Width="44" Height="44" Background="#33263F" CornerRadius="13" Margin="8,0,0,0" BorderBrush="#5B3C72" BorderThickness="1"><TextBlock Text="OD" Foreground="#E5C9FF" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
         </Grid>
       </Border>
       <Grid Grid.Row="1" ColumnDefinitions="*,300">
         <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="24,22,16,16">
-          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="7">
+          <Grid Grid.Row="0" ColumnDefinitions="*" RowDefinitions="Auto,Auto" RowSpacing="7">
             <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
-            <Button Grid.Column="1" Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button>
-            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
-              <Button Classes="ghost" Click="Back_Click" IsEnabled="False" x:Name="BackButton" Content="← Voltar"/>
-              <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
-              <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
-            </StackPanel>
-          </Grid>
-          <Border Grid.Row="1" Background="#201D28" BorderBrush="#332D3D" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,18,0,12">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
-              <TextBlock Text="Nome" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
-              <Button Grid.Column="1" Classes="ghost" Content="☆ Favoritar" IsEnabled="False" x:Name="FavoriteButton" Opacity="0.55"/>
-              <Button Grid.Column="2" Classes="ghost" Content="↓ Baixar" IsEnabled="False" x:Name="DownloadButton" Opacity="0.55"/>
-              <Button Grid.Column="3" Classes="ghost" Content="•••" IsEnabled="False" x:Name="MoreButton" Opacity="0.55"/>
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,10,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Click="Back_Click" IsEnabled="False" x:Name="BackButton" Content="← Voltar"/>
+                <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
+                <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+              </StackPanel>
+              <Button Grid.Column="1" HorizontalAlignment="Right" Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button>
             </Grid>
-          </Border>
-          <Border Grid.Row="2" Classes="panel" Padding="0">
+          </Grid>
+          <Border Grid.Row="1" Classes="panel" Padding="0">
             <Grid RowDefinitions="Auto,*">
               <Border BorderBrush="#332D3D" BorderThickness="0,0,0,1" Padding="14,12">
                 <Grid ColumnDefinitions="34,*,105,130,26" ColumnSpacing="8">
@@ -76,7 +70,6 @@
                   <Border Width="58" Height="58" CornerRadius="18" Background="#332641"><TextBlock Text="▤" FontSize="29" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                   <TextBlock Text="Nenhum arquivo disponível" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                   <TextBlock Text="Conecte um serviço para carregar a lista. Os arquivos e seus metadados serão exibidos aqui quando o provedor fornecer essas informações." Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
-                  <Button Classes="ghost" Content="Como funciona" IsEnabled="False" Opacity="0.55" Margin="0,4,0,0"/>
                 </StackPanel>
               </Grid>
             </Grid>
