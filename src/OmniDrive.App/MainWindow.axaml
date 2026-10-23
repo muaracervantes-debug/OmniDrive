@@ -2,43 +2,126 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OmniDrive.App.MainWindow"
         Title="OmniDrive"
-        Width="1100"
-        Height="720"
-        MinWidth="800"
-        MinHeight="520"
-        WindowStartupLocation="CenterScreen">
-  <Grid RowDefinitions="Auto,*" ColumnDefinitions="240,*">
-    <Border Grid.Row="0" Grid.ColumnSpan="2" Padding="20,14"
-            Background="{DynamicResource SystemAccentColor}">
-      <TextBlock Text="OmniDrive" FontSize="22" FontWeight="SemiBold"
-                 Foreground="White" />
-    </Border>
-
-    <Border Grid.Row="1" Grid.Column="0" Padding="16"
-            BorderBrush="{DynamicResource ThemeBorderLowBrush}" BorderThickness="0,0,1,0">
-      <StackPanel Spacing="12">
-        <TextBlock Text="ARMAZENAMENTOS" FontSize="11" FontWeight="Bold" Opacity="0.65" />
-        <Button Content="Telegram" HorizontalContentAlignment="Left" IsEnabled="False" />
-        <TextBlock Text="Mais provedores poderão ser adicionados aqui."
-                   TextWrapping="Wrap" Opacity="0.65" FontSize="12" />
-      </StackPanel>
-    </Border>
-
-    <Grid Grid.Row="1" Grid.Column="1" Margin="28" RowDefinitions="Auto,Auto,*">
-      <TextBlock Text="Seu armazenamento, em um só lugar"
-                 FontSize="26" FontWeight="SemiBold" />
-      <TextBlock Grid.Row="1" Margin="0,10,0,24"
-                 Text="A base do OmniDrive está pronta para receber a primeira integração."
-                 TextWrapping="Wrap" Opacity="0.7" />
-      <Border Grid.Row="2" Padding="24" CornerRadius="10"
-              BorderBrush="{DynamicResource ThemeBorderLowBrush}" BorderThickness="1">
-        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center">
-          <TextBlock Text="Nenhuma conta conectada" FontSize="18" FontWeight="SemiBold"
-                     HorizontalAlignment="Center" />
-          <TextBlock Text="A conexão com o Telegram será habilitada na próxima etapa."
-                     TextWrapping="Wrap" TextAlignment="Center" MaxWidth="420" Opacity="0.7" />
+        Width="1440" Height="900" MinWidth="1000" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="#14121B"
+        Foreground="#F4F0FA">
+  <Window.Styles>
+    <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#A49CAF"/></Style>
+    <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#BEB6CB"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Padding" Value="14,12"/><Setter Property="CornerRadius" Value="10"/><Setter Property="FontSize" Value="14"/></Style>
+    <Style Selector="Button.nav:pointerover"><Setter Property="Background" Value="#292431"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector="Button.nav.selected"><Setter Property="Background" Value="#382844"/><Setter Property="Foreground" Value="#DCA8FF"/></Style>
+    <Style Selector="Button.action"><Setter Property="Background" Value="#A855F7"/><Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="Padding" Value="16,10"/><Setter Property="CornerRadius" Value="10"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.action:pointerover"><Setter Property="Background" Value="#9333EA"/></Style>
+    <Style Selector="Button.ghost"><Setter Property="Background" Value="#272330"/><Setter Property="Foreground" Value="#E8E0F2"/><Setter Property="Padding" Value="12,9"/><Setter Property="CornerRadius" Value="9"/></Style>
+    <Style Selector="Border.panel"><Setter Property="Background" Value="#201D28"/><Setter Property="BorderBrush" Value="#332D3D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="16"/></Style>
+  </Window.Styles>
+  <Grid ColumnDefinitions="236,*">
+    <Border Grid.Column="0" Background="#1B1823" BorderBrush="#302A39" BorderThickness="0,0,1,0" Padding="18">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="4,8,0,30">
+          <Border Width="38" Height="38" CornerRadius="12" Background="#A855F7">
+            <TextBlock Text="O" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <StackPanel VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="OmniDrive" FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="UNIFIED STORAGE" FontSize="9" CharacterSpacing="1.8" Classes="muted"/>
+          </StackPanel>
         </StackPanel>
+        <Button Grid.Row="1" Classes="action" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,24">
+          <StackPanel Orientation="Horizontal" Spacing="9"><TextBlock Text="＋" FontSize="18"/><TextBlock Text="Conectar armazenamento" VerticalAlignment="Center"/></StackPanel>
+        </Button>
+        <StackPanel Grid.Row="2" Spacing="5">
+          <TextBlock Text="ESPAÇO DE TRABALHO" Classes="muted" FontSize="10" FontWeight="Bold" Margin="10,0,0,8"/>
+          <Button Classes="nav selected"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▦" FontSize="17"/><TextBlock Text="Visão geral" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button Classes="nav"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▤" FontSize="17"/><TextBlock Text="Todos os arquivos" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button Classes="nav"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="☆" FontSize="18"/><TextBlock Text="Favoritos" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button Classes="nav"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="↻" FontSize="18"/><TextBlock Text="Transferências" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button Classes="nav"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▱" FontSize="18"/><TextBlock Text="Lixeira" VerticalAlignment="Center"/></StackPanel></Button>
+          <Border Height="1" Background="#342D3E" Margin="8,14"/>
+          <TextBlock Text="CONTAS CONECTADAS" Classes="muted" FontSize="10" FontWeight="Bold" Margin="10,0,0,8"/>
+          <Border Background="#292431" CornerRadius="10" Padding="11">
+            <Grid ColumnDefinitions="30,*,Auto">
+              <Border Width="27" Height="27" Background="#303B68" CornerRadius="8"><TextBlock Text="➤" Foreground="#9DABFF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+              <StackPanel Grid.Column="1" Margin="9,0,0,0" VerticalAlignment="Center" Spacing="2"><TextBlock Text="Telegram" FontSize="13"/><TextBlock Text="Não conectado" FontSize="10" Classes="muted"/></StackPanel>
+              <Ellipse Grid.Column="2" Width="7" Height="7" Fill="#E5A94D" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <TextBlock Text="Mais provedores em breve" Classes="muted" FontSize="11" Margin="10,8,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Spacing="8">
+          <Button Classes="nav"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="⚙" FontSize="17"/><TextBlock Text="Configurações" VerticalAlignment="Center"/></StackPanel></Button>
+          <Border Classes="panel" Padding="12">
+            <StackPanel Spacing="7">
+              <TextBlock Text="PRIVACIDADE EM PRIMEIRO LUGAR" FontSize="10" FontWeight="Bold" Foreground="#D7B1FF"/>
+              <TextBlock Text="Suas contas e sessões ficam protegidas no dispositivo." FontSize="11" Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <TextBlock Text="OmniDrive • Prévia da interface" Classes="muted" FontSize="10" Margin="4,4,0,0"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+      <Border Grid.Row="0" Background="#191620" BorderBrush="#302A39" BorderThickness="0,0,0,1" Padding="28,18">
+        <Grid ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Seu espaço, em um só lugar" FontSize="23" FontWeight="SemiBold"/>
+            <TextBlock Text="Encontre, organize e transfira arquivos entre suas contas." FontSize="12" Classes="muted"/>
+          </StackPanel>
+          <Border Grid.Column="1" Background="#25212D" BorderBrush="#393242" BorderThickness="1" CornerRadius="10" Width="280" Padding="12,9" Margin="12,0">
+            <Grid ColumnDefinitions="Auto,*"><TextBlock Text="⌕" FontSize="20" Foreground="#B9AFC7" Margin="0,0,8,0"/><TextBlock Grid.Column="1" Text="Buscar arquivos e pastas..." Foreground="#93899F" VerticalAlignment="Center" FontSize="12"/></Grid>
+          </Border>
+          <Border Grid.Column="2" Width="40" Height="40" Background="#33263F" CornerRadius="13" Margin="8,0,0,0"><TextBlock Text="JD" Foreground="#E5C9FF" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+        </Grid>
       </Border>
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28" Spacing="24">
+          <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+            <StackPanel Spacing="5"><TextBlock Text="Visão geral" FontSize="26" FontWeight="Bold"/><TextBlock Text="Acompanhe seu armazenamento e suas atividades recentes." Classes="muted" FontSize="12"/></StackPanel>
+            <Button Grid.Column="1" Classes="ghost" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="↻"/><TextBlock Text="Atualizado agora"/></StackPanel></Button>
+          </Grid>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="14">
+            <Border Classes="panel" Padding="18"><StackPanel Spacing="14"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Contas conectadas" Classes="muted" FontSize="12"/><Border Grid.Column="1" Background="#332641" CornerRadius="8" Padding="7"><TextBlock Text="◇" Foreground="#D9B2FF" FontSize="15"/></Border></Grid><TextBlock Text="0" FontSize="30" FontWeight="Bold"/><TextBlock Text="Conecte sua primeira conta" Classes="muted" FontSize="11"/></StackPanel></Border>
+            <Border Grid.Column="1" Classes="panel" Padding="18"><StackPanel Spacing="14"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Arquivos indexados" Classes="muted" FontSize="12"/><Border Grid.Column="1" Background="#203A34" CornerRadius="8" Padding="7"><TextBlock Text="▤" Foreground="#6ED6B1" FontSize="15"/></Border></Grid><TextBlock Text="—" FontSize="30" FontWeight="Bold"/><TextBlock Text="Aguardando conexão" Classes="muted" FontSize="11"/></StackPanel></Border>
+            <Border Grid.Column="2" Classes="panel" Padding="18"><StackPanel Spacing="14"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Transferências" Classes="muted" FontSize="12"/><Border Grid.Column="1" Background="#20304B" CornerRadius="8" Padding="7"><TextBlock Text="⇄" Foreground="#8EBBFF" FontSize="15"/></Border></Grid><TextBlock Text="0" FontSize="30" FontWeight="Bold"/><TextBlock Text="Nenhuma em andamento" Classes="muted" FontSize="11"/></StackPanel></Border>
+            <Border Grid.Column="3" Classes="panel" Padding="18"><StackPanel Spacing="14"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="Espaço utilizado" Classes="muted" FontSize="12"/><Border Grid.Column="1" Background="#3A2C20" CornerRadius="8" Padding="7"><TextBlock Text="◴" Foreground="#F3C27A" FontSize="15"/></Border></Grid><TextBlock Text="—" FontSize="30" FontWeight="Bold"/><TextBlock Text="Varia conforme o provedor" Classes="muted" FontSize="11"/></StackPanel></Border>
+          </Grid>
+          <Grid ColumnDefinitions="1.3*,*" ColumnSpacing="16">
+            <Border Classes="panel" Padding="22">
+              <StackPanel Spacing="18">
+                <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="4"><TextBlock Text="Seus armazenamentos" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Conecte serviços para reunir seus arquivos aqui." Classes="muted" FontSize="12"/></StackPanel><TextBlock Grid.Column="1" Text="•••" Classes="muted" FontSize="17"/></Grid>
+                <Border Background="#292431" CornerRadius="12" Padding="16">
+                  <Grid ColumnDefinitions="44,*,Auto" VerticalAlignment="Center">
+                    <Border Width="40" Height="40" Background="#313A66" CornerRadius="12"><TextBlock Text="➤" FontSize="20" Foreground="#A9B8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel Grid.Column="1" Margin="12,0" Spacing="4" VerticalAlignment="Center"><TextBlock Text="Telegram" FontWeight="SemiBold"/><TextBlock Text="Mensagens e arquivos de mídia" FontSize="11" Classes="muted"/></StackPanel>
+                    <Button Grid.Column="2" Classes="action" Padding="12,8" Content="Configurar" IsEnabled="False" Opacity="0.65"/>
+                  </Grid>
+                </Border>
+                <Border BorderBrush="#41334F" BorderThickness="1" BorderDashArray="5,3" CornerRadius="12" Padding="20">
+                  <StackPanel HorizontalAlignment="Center" Spacing="8"><TextBlock Text="＋" FontSize="26" Foreground="#C084FC" HorizontalAlignment="Center"/><TextBlock Text="Adicione outro provedor" FontWeight="SemiBold"/><TextBlock Text="A arquitetura foi preparada para múltiplos serviços." FontSize="11" Classes="muted" TextAlignment="Center"/></StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="panel" Padding="22">
+              <StackPanel Spacing="17">
+                <TextBlock Text="Acesso rápido" FontSize="17" FontWeight="SemiBold"/>
+                <Grid ColumnDefinitions="44,*,Auto"><Border Width="40" Height="40" Background="#302541" CornerRadius="11"><TextBlock Text="▤" Foreground="#D6A8FF" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="3"><TextBlock Text="Todos os arquivos" FontSize="13"/><TextBlock Text="Navegue por suas contas" FontSize="11" Classes="muted"/></StackPanel><TextBlock Grid.Column="2" Text="›" FontSize="22" Classes="muted" VerticalAlignment="Center"/></Grid>
+                <Border Height="1" Background="#342D3E"/>
+                <Grid ColumnDefinitions="44,*,Auto"><Border Width="40" Height="40" Background="#203B35" CornerRadius="11"><TextBlock Text="☆" Foreground="#75D9B7" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="3"><TextBlock Text="Favoritos" FontSize="13"/><TextBlock Text="Itens que você marcou" FontSize="11" Classes="muted"/></StackPanel><TextBlock Grid.Column="2" Text="›" FontSize="22" Classes="muted" VerticalAlignment="Center"/></Grid>
+                <Border Height="1" Background="#342D3E"/>
+                <Grid ColumnDefinitions="44,*,Auto"><Border Width="40" Height="40" Background="#3B3021" CornerRadius="11"><TextBlock Text="⇄" Foreground="#F2C078" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Spacing="3"><TextBlock Text="Fila de transferências" FontSize="13"/><TextBlock Text="Progresso e histórico" FontSize="11" Classes="muted"/></StackPanel><TextBlock Grid.Column="2" Text="›" FontSize="22" Classes="muted" VerticalAlignment="Center"/></Grid>
+                <Border Background="#292431" CornerRadius="10" Padding="12" Margin="0,5,0,0"><TextBlock Text="As operações de arquivos serão habilitadas após conectar um provedor." FontSize="11" Classes="muted" TextWrapping="Wrap"/></Border>
+              </StackPanel>
+            </Border>
+          </Grid>
+          <Border Classes="panel" Padding="22">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="18">
+              <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="4"><TextBlock Text="Arquivos recentes" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Os arquivos aparecerão aqui depois da primeira conexão." Classes="muted" FontSize="12"/></StackPanel><Button Grid.Column="1" Classes="ghost" Content="Ver todos" IsEnabled="False" Opacity="0.55"/></Grid>
+              <Border Grid.Row="1" Background="#292431" CornerRadius="12" Padding="26"><StackPanel HorizontalAlignment="Center" Spacing="8"><Border Width="46" Height="46" CornerRadius="15" Background="#382844"><TextBlock Text="▤" FontSize="24" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="Nenhum arquivo para mostrar" FontWeight="SemiBold" HorizontalAlignment="Center"/><TextBlock Text="Seus arquivos serão listados aqui, sem mover ou copiar nada automaticamente." Classes="muted" FontSize="11" TextAlignment="Center" TextWrapping="Wrap"/></StackPanel></Border>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
     </Grid>
   </Grid>
 </Window>
