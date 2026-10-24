@@ -35,7 +35,7 @@
     </Border>
     <Grid Grid.Column="1" RowDefinitions="*,Auto">
       <Grid Grid.Row="0" ColumnDefinitions="*,300">
-        <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
+        <Grid x:Name="DriveContent" Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
             <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
             <TextBox x:Name="SearchBox" Grid.Column="1" Classes="search" Width="420" Watermark="Buscar por nome..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,8,0"/>
@@ -111,6 +111,80 @@
             </ScrollViewer>
           </Grid>
         </Border>
+        <ScrollViewer x:Name="SettingsContent" Grid.ColumnSpan="2" IsVisible="False" Margin="24,22,24,16">
+          <StackPanel Spacing="18">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/>
+              <TextBlock Text="Gerencie conexões, transferências, integridade e dados locais." Classes="muted" FontSize="12"/>
+            </StackPanel>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="1. Conectar serviços" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Adicione várias contas do mesmo serviço e atribua um nome para identificar cada conexão." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="180,*,Auto,Auto" ColumnSpacing="10">
+                  <ComboBox x:Name="NewConnectionService" SelectedIndex="0"><ComboBoxItem Content="Telegram"/><ComboBoxItem Content="Outro serviço compatível"/></ComboBox>
+                  <TextBox x:Name="NewConnectionName" Grid.Column="1" Watermark="Nome da conexão (ex.: Telegram pessoal)"/>
+                  <Button Grid.Column="2" Classes="action" Click="AddConnection_Click" Content="＋ Adicionar"/>
+                  <Button Grid.Column="3" Classes="ghost" Click="EditConnection_Click" Content="Editar selecionada"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <ListBox x:Name="ConnectionsList" MinHeight="70" MaxHeight="150" SelectionChanged="ConnectionsList_SelectionChanged"/>
+                  <Button Grid.Column="1" Classes="ghost" Click="DeleteConnection_Click" Content="Excluir selecionada" VerticalAlignment="Top"/>
+                </Grid>
+                <TextBlock Text="A conexão com o serviço e a autenticação real serão habilitadas na integração do provedor. Esta seção permite organizar as conexões cadastradas." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="2. Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="220,180,Auto" ColumnSpacing="10">
+                  <ComboBox x:Name="UploadLimitConnection" Grid.Column="0" Watermark="Selecione uma conexão" SelectionChanged="UploadLimitConnection_SelectionChanged"/>
+                  <TextBox x:Name="UploadLimitValue" Grid.Column="1" Watermark="Limite em MB" Text="0"/>
+                  <Button Grid.Column="2" Classes="action" Click="SaveUploadLimit_Click" Content="Salvar limite"/>
+                </Grid>
+                <TextBlock Text="Ao colocar 0 não haverá limite de upload." Foreground="#D6A8FF" FontSize="12"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="3. Transferências simultâneas" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="O excedente permanece na fila até que uma transferência ativa termine." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="220,180,220,180" ColumnSpacing="10">
+                  <TextBlock Text="Máximo de uploads simultâneos" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBox x:Name="MaxUploadsValue" Grid.Column="1" Text="4" Watermark="Padrão: 4"/>
+                  <TextBlock Grid.Column="2" Text="Máximo de downloads simultâneos" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBox x:Name="MaxDownloadsValue" Grid.Column="3" Text="4" Watermark="Padrão: 4"/>
+                </Grid>
+                <Button Classes="action" HorizontalAlignment="Right" Click="SaveTransferSettings_Click" Content="Salvar limites de transferência"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4"><TextBlock Text="4. Integridade" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Cada verificação pode ser ativada ou desativada independentemente." Classes="muted" FontSize="12"/></StackPanel>
+                <CheckBox x:Name="VerifyUploadHash" Content="Verificar hash durante o upload" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
+                <TextBlock x:Name="UploadIntegrityWarning" Text="Desativar esta opção significa que a integridade do upload não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
+                <CheckBox x:Name="VerifyDownloadHash" Content="Verificar hash durante o download" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
+                <TextBlock x:Name="DownloadIntegrityWarning" Text="Desativar esta opção significa que a integridade do download não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
+                <Button Classes="action" HorizontalAlignment="Right" Click="SaveIntegritySettings_Click" Content="Salvar opções de integridade"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4"><TextBlock Text="5. Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Recurso previsto para uma versão futura. Até lá, o destino deverá ser escolhido em cada download." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <TextBox x:Name="DefaultDownloadFolder" IsReadOnly="True" Watermark="Ainda não configurável nesta versão"/>
+                  <Button Grid.Column="1" Classes="ghost" Content="Selecionar pasta" IsEnabled="False"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="10">
+                <TextBlock Text="6. Segurança e dados locais" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="As preferências e os limites configurados serão mantidos localmente. Os dados locais não devem ser a única fonte para identificar partes de arquivos nem para recuperar hashes." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="As credenciais ainda não são coletadas nesta tela. A proteção de tokens e sessões deverá ser implementada junto à autenticação de cada provedor, usando armazenamento seguro do sistema operacional." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <TextBlock x:Name="SettingsStatus" Text="Preferências ainda não salvas nesta sessão." Classes="muted" FontSize="11" Margin="2,0,0,8"/>
+          </StackPanel>
+        </ScrollViewer>
       </Grid>
       <Border Grid.Row="1" Background="#191620" BorderBrush="#302A39" BorderThickness="0,1,0,0" Padding="20,9">
         <Grid ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse Width="7" Height="7" Fill="#E5A94D" VerticalAlignment="Center"/><TextBlock x:Name="StatusText" Text="Nenhum serviço conectado" Classes="muted" FontSize="11" VerticalAlignment="Center"/></StackPanel><TextBlock Grid.Column="1" Text="Fila de transferências: 0" Classes="muted" FontSize="11" VerticalAlignment="Center"/></Grid>
