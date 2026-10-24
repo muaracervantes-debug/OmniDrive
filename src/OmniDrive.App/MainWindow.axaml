@@ -221,5 +221,51 @@
         </Grid>
       </Grid>
     </Grid>
+  <StackPanel Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
+    <Border x:Name="TransferQueuePanel" Classes="panel" Width="440" MaxHeight="430" Padding="14" IsVisible="False">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3"><TextBlock Text="Fila de transferência" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="Em andamento e aguardando execução" Classes="muted" FontSize="11"/></StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="⌄" Click="ToggleTransferQueue_Click" ToolTip.Tip="Recolher fila"/>
+        </Grid>
+        <Border Height="1" Background="#342D3E"/>
+        <ListBox x:Name="TransferItemsList" MaxHeight="330" Background="Transparent" BorderThickness="0" DoubleTapped="TransferItem_DoubleTapped">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border Background="#292431" CornerRadius="10" Padding="10" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="34,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="9" RowSpacing="5">
+                  <TextBlock Grid.RowSpan="3" Text="{Binding Icon}" FontSize="23" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#D6A8FF"/>
+                  <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <Button Grid.Column="2" Grid.Row="0" Grid.RowSpan="2" Tag="{Binding}" Click="RemoveTransfer_Click" Classes="ghost" Content="×" Padding="8,2" ToolTip.Tip="Cancelar e remover"/>
+                  <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="{Binding Percentage}"/>
+                  <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ProgressLabel}" Classes="muted" FontSize="10"/>
+                  <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding PartDescription}" Foreground="#D6A8FF" FontSize="10" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock x:Name="TransferQueueEmpty" Text="Nenhuma transferência na fila." Classes="muted" FontSize="12" HorizontalAlignment="Center" Margin="0,8" IsVisible="True"/>
+        <TextBlock Text="Dê duplo clique em uma transferência para ver os detalhes." Classes="muted" FontSize="10" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+    <Button x:Name="TransferQueueButton" Classes="action" Click="ToggleTransferQueue_Click" HorizontalAlignment="Right" Padding="16,11">
+      <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="⇅" FontSize="17"/><TextBlock Text="Fila de transferência"/><TextBlock x:Name="TransferQueueCount" Text="0 / 0" Foreground="#F3DFFF" FontWeight="Bold"/></StackPanel>
+    </Button>
+  </StackPanel>
+  <Grid x:Name="TransferDetailsOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990A0810" ZIndex="20" PointerPressed="TransferDetailsOverlay_PointerPressed">
+    <Border Classes="panel" Width="520" MaxHeight="650" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="TransferDetailsCard_PointerPressed">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="3"><TextBlock Text="Detalhes da transferência" FontSize="19" FontWeight="Bold"/><TextBlock x:Name="TransferDetailService" Text="Serviço: —" Classes="muted" FontSize="11"/></StackPanel><Button Grid.Column="1" Classes="ghost" Content="×" Click="CloseTransferDetails_Click"/></Grid>
+        <TextBlock x:Name="TransferDetailName" Text="Nome: —" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="TransferDetailPercent" Text="Progresso: 0%" Classes="muted" FontSize="12"/><TextBlock x:Name="TransferDetailSpeed" Grid.Column="1" Text="Velocidade: —" Classes="muted" FontSize="12"/></Grid>
+        <ProgressBar x:Name="TransferDetailProgress" Minimum="0" Maximum="100" Value="0" Height="10"/>
+        <Grid ColumnDefinitions="*,*"><StackPanel Spacing="4"><TextBlock Text="Tempo decorrido" Classes="muted" FontSize="11"/><TextBlock x:Name="TransferDetailElapsed" Text="—" FontSize="12"/></StackPanel><StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock x:Name="TransferDetailSize" Text="—" FontSize="12"/></StackPanel></Grid>
+        <TextBlock x:Name="TransferDetailCredential" Text="Credencial: —" Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+        <TextBlock x:Name="TransferDetailPart" Text="Parte: —" Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+        <TextBlock Text="Clique fora deste painel para fechar." Classes="muted" FontSize="10"/>
+      </StackPanel>
+    </Border>
+  </Grid>
   </Grid>
 </Window>
