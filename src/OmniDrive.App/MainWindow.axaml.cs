@@ -100,7 +100,7 @@ public partial class MainWindow : Window
 
     private void Search_TextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (FilterCount is not null && FilterCount.Text.Length > 0)
+        if (FilterCount is not null && !string.IsNullOrEmpty(FilterCount.Text))
             return;
 
         StatusText.Text = string.IsNullOrWhiteSpace(SearchBox.Text)
