@@ -128,7 +128,7 @@
               <StackPanel Spacing="5">
                 <TextBlock Text="Conectar serviços" FontSize="23" FontWeight="Bold" Foreground="#F4F0FA"/>
                 <TextBlock Text="Escolha um serviço para cadastrar uma conta." FontSize="12" Foreground="#A49CAF" TextWrapping="Wrap"/>
-                <TextBlock x:Name="SettingsStatus" Text="" FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
+                <TextBlock x:Name="SettingsStatus" Text="" FontSize="11" Foreground="#A49CAF" TextWrapping="Wrap"/>
               </StackPanel>
               <Border Background="#201D28" BorderBrush="#332D3D" BorderThickness="1" CornerRadius="15" Padding="16">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
@@ -142,15 +142,15 @@
               <Border Background="#25212D" BorderBrush="#393242" BorderThickness="1" CornerRadius="15" Padding="16">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
                   <StackPanel Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="Telegram" FontSize="14" FontWeight="SemiBold" Foreground="#201A32"/>
+                    <TextBlock Text="Telegram" FontSize="14" FontWeight="SemiBold" Foreground="#F4F0FA"/>
                     <TextBlock Text="Informe as credenciais do aplicativo (my.telegram.org) e o telefone da conta." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
                   </StackPanel>
                   <Button Grid.Column="1" Classes="action" Content="＋ Conectar" Click="ShowTelegramConnect_Click" VerticalAlignment="Center" MinWidth="104"/>
                 </Grid>
               </Border>
-              <Border Background="#FFFFFF" BorderBrush="#E3DDEF" BorderThickness="1" CornerRadius="15" Padding="16">
+              <Border IsVisible="False">
                 <StackPanel Spacing="12">
-                  <TextBlock Text="Conexões cadastradas" FontSize="14" FontWeight="SemiBold" Foreground="#201A32"/>
+                  <TextBlock Text="Conexões cadastradas" FontSize="14" FontWeight="SemiBold" Foreground="#F4F0FA"/>
                   <Grid ColumnDefinitions="180,*,Auto,Auto" ColumnSpacing="8">
                     <ComboBox x:Name="NewConnectionService" SelectedIndex="0"><ComboBoxItem Content="Outro serviço compatível"/><ComboBoxItem Content="Telegram"/></ComboBox>
                     <TextBox x:Name="NewConnectionName" Grid.Column="1" Watermark="Nome da conexão"/>
@@ -158,7 +158,7 @@
                     <Button Grid.Column="3" Classes="ghost" Click="EditConnection_Click" Content="Editar"/>
                   </Grid>
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <ListBox x:Name="ConnectionsList" MinHeight="50" MaxHeight="120" SelectionChanged="ConnectionsList_SelectionChanged" Background="#FFFFFF" Foreground="#201A32"/>
+                    <ListBox x:Name="ConnectionsList" MinHeight="50" MaxHeight="120" SelectionChanged="ConnectionsList_SelectionChanged" Background="#25212D" Foreground="#F4F0FA"/>
                     <Button Grid.Column="1" Classes="ghost" Click="DeleteConnection_Click" Content="Excluir" VerticalAlignment="Top"/>
                   </Grid>
                 </StackPanel>
@@ -219,37 +219,37 @@
       </Grid>
       <Grid x:Name="TelegramSetupOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990B0910" ZIndex="100" PointerPressed="TelegramSetupOverlay_PointerPressed">
     <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="480" MaxHeight="760" Classes="panel" Padding="0" PointerPressed="TelegramSetupCard_PointerPressed">
-      <Border x:Name="TelegramSetupPanel" Background="#FFFFFF" BorderBrush="#E3DDEF" BorderThickness="1" CornerRadius="15" Padding="18" IsVisible="False">
+      <Border x:Name="TelegramSetupPanel" Background="#201D28" BorderBrush="#393242" BorderThickness="1" CornerRadius="15" Padding="18" >
                 <StackPanel Spacing="13">
                   <StackPanel Spacing="4">
-                    <TextBlock Text="Nova conexão" FontSize="22" FontWeight="Bold" Foreground="#17132A"/>
+                    <TextBlock Text="Nova conexão" FontSize="22" FontWeight="Bold" Foreground="#F4F0FA"/>
                     <TextBlock Text="Telegram" FontSize="12" Foreground="#746D83"/>
                     <TextBlock Text="Informe as credenciais do aplicativo (my.telegram.org) e o telefone da conta." FontSize="12" Foreground="#746D83" TextWrapping="Wrap"/>
                   </StackPanel>
                   <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
-                    <TextBlock Text="Nome" FontSize="12" Foreground="#201A32" VerticalAlignment="Center"/>
-                    <TextBox x:Name="TelegramConnectionName" Grid.Column="1" Watermark="Ex.: Telegram - Pessoal" Background="#FFFFFF" Foreground="#201A32" BorderBrush="#E3DDEF"/>
+                    <TextBlock Text="Nome" FontSize="12" Foreground="#F4F0FA" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TelegramConnectionName" Grid.Column="1" Watermark="Ex.: Telegram - Pessoal" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
                   </Grid>
                   <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
-                    <TextBlock Text="API ID" FontSize="12" Foreground="#201A32" VerticalAlignment="Center"/>
-                    <TextBox x:Name="TelegramApiId" Grid.Column="1" Watermark="1234567" Background="#FFFFFF" Foreground="#201A32" BorderBrush="#E3DDEF"/>
+                    <TextBlock Text="API ID" FontSize="12" Foreground="#F4F0FA" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TelegramApiId" Grid.Column="1" Watermark="1234567" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
                   </Grid>
                   <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
-                    <TextBlock Text="API Hash" FontSize="12" Foreground="#201A32" VerticalAlignment="Center"/>
-                    <TextBox x:Name="TelegramApiHash" Grid.Column="1" PasswordChar="●" Watermark="API Hash da aplicação" Background="#FFFFFF" Foreground="#201A32" BorderBrush="#E3DDEF"/>
+                    <TextBlock Text="API Hash" FontSize="12" Foreground="#F4F0FA" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TelegramApiHash" Grid.Column="1" PasswordChar="●" Watermark="API Hash da aplicação" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
                   </Grid>
                   <Grid ColumnDefinitions="48,*" ColumnSpacing="12">
-                    <TextBlock Text="Telefone" FontSize="12" Foreground="#201A32" VerticalAlignment="Center"/>
-                    <TextBox x:Name="TelegramPhone" Grid.Column="1" Watermark="+55 11 99999-9999" Background="#FFFFFF" Foreground="#201A32" BorderBrush="#E3DDEF"/>
+                    <TextBlock Text="Telefone" FontSize="12" Foreground="#F4F0FA" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TelegramPhone" Grid.Column="1" Watermark="+55 11 99999-9999" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
                   </Grid>
                   <TextBlock Text="O código pode chegar em uma conversa de serviço dentro do Telegram, em vez de SMS. Confira também as sessões já conectadas." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
                   <StackPanel Spacing="5" IsVisible="False" x:Name="TelegramLoginInputPanel">
-                    <TextBlock x:Name="TelegramLoginLabel" Text="Código de verificação" FontSize="12" Foreground="#201A32"/>
-                    <TextBox x:Name="TelegramLoginInput" Watermark="Digite a informação solicitada" Background="#FFFFFF" Foreground="#201A32" BorderBrush="#E3DDEF"/>
+                    <TextBlock x:Name="TelegramLoginLabel" Text="Código de verificação" FontSize="12" Foreground="#F4F0FA"/>
+                    <TextBox x:Name="TelegramLoginInput" Watermark="Digite a informação solicitada" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
                   </StackPanel>
                   <TextBlock x:Name="TelegramStatus" Text="Desconectado. Nenhuma credencial foi carregada." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                    <Button Classes="ghost" Click="HideTelegramConnect_Click" Content="Cancelar" Background="Transparent" Foreground="#201A32"/>
+                    <Button Classes="ghost" Click="HideTelegramConnect_Click" Content="Cancelar" Background="Transparent" Foreground="#F4F0FA"/>
                     <Button x:Name="TelegramConnectButton" Classes="action" Click="TelegramConnect_Click" Content="Salvar e conectar"/>
                   </StackPanel>
                   <Button Classes="ghost" Click="TelegramForget_Click" Content="Apagar credenciais salvas" HorizontalAlignment="Left" Background="Transparent" Foreground="#746D83"/>
