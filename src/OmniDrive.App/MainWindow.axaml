@@ -221,6 +221,7 @@
         </Grid>
       </Grid>
     </Grid>
+  <TextBlock x:Name="StatusText" IsVisible="False" />
   <StackPanel Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
     <Border x:Name="TransferQueuePanel" Classes="panel" Width="440" MaxHeight="430" Padding="14" IsVisible="False">
       <StackPanel Spacing="12">
