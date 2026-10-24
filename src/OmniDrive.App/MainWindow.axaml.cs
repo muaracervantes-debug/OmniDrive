@@ -392,14 +392,33 @@ public partial class MainWindow : Window
             foreach (var pair in data.UploadLimits ?? new Dictionary<string, string>())
                 _uploadLimits[pair.Key] = pair.Value;
 
-            MaxUploadsValue.Text = Math.Max(1, data.MaxUploads).ToString();
-            MaxDownloadsValue.Text = Math.Max(1, data.MaxDownloads).ToString();
-            VerifyUploadHash.IsChecked = data.VerifyUploadHash;
-            VerifyDownloadHash.IsChecked = data.VerifyDownloadHash;
+            if (MaxUploadsValue is not null)
+                MaxUploadsValue.Text = Math.Max(1, data.MaxUploads).ToString();
+            if (MaxDownloadsValue is not null)
+                MaxDownloadsValue.Text = Math.Max(1, data.MaxDownloads).ToString();
+            if (VerifyUploadHash is not null)
+                VerifyUploadHash.IsChecked = data.VerifyUploadHash;
+            if (VerifyDownloadHash is not null)
+                VerifyDownloadHash.IsChecked = data.VerifyDownloadHash;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            SettingsStatus.Text = "Não foi possível carregar algumas preferências locais; os valores padrão serão usados.";
+            // A bad settings file must not prevent the main window from opening.
+            try
+            {
+                var directory = Path.GetDirectoryName(_settingsPath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+                File.AppendAllText(Path.Combine(directory ?? ".", "startup.log"),
+                    $"[{DateTimeOffset.Now:O}] Failed to load settings: {ex}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Logging is best-effort; startup must continue.
+            }
+
+            if (SettingsStatus is not null)
+                SettingsStatus.Text = "Não foi possível carregar algumas preferências locais; os valores padrão serão usados.";
         }
     }
 
