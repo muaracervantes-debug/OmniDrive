@@ -72,7 +72,14 @@ public partial class MainWindow : Window
         SelectAllCheckBox = this.FindControl<CheckBox>(nameof(SelectAllCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectAllCheckBox");
         EmptyFilesState = this.FindControl<Grid>(nameof(EmptyFilesState)) ?? throw new InvalidOperationException("Controle XAML não encontrado: EmptyFilesState");
         DetailsPanel = this.FindControl<Border>(nameof(DetailsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DetailsPanel");
-        SettingsContent = this.FindControl<ScrollViewer>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
+        SettingsContent = this.FindControl<Grid>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
+        SettingsConnectPage = this.FindControl<ScrollViewer>(nameof(SettingsConnectPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsConnectPage");
+        SettingsUploadPage = this.FindControl<ScrollViewer>(nameof(SettingsUploadPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsUploadPage");
+        SettingsTransfersPage = this.FindControl<ScrollViewer>(nameof(SettingsTransfersPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsTransfersPage");
+        SettingsIntegrityPage = this.FindControl<ScrollViewer>(nameof(SettingsIntegrityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsIntegrityPage");
+        SettingsFolderPage = this.FindControl<ScrollViewer>(nameof(SettingsFolderPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsFolderPage");
+        SettingsSecurityPage = this.FindControl<ScrollViewer>(nameof(SettingsSecurityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsSecurityPage");
+        SettingsLocalDataPage = this.FindControl<ScrollViewer>(nameof(SettingsLocalDataPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsLocalDataPage");
         NewConnectionService = this.FindControl<ComboBox>(nameof(NewConnectionService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionService");
         NewConnectionName = this.FindControl<TextBox>(nameof(NewConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionName");
         ConnectionsList = this.FindControl<ListBox>(nameof(ConnectionsList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ConnectionsList");
@@ -121,6 +128,28 @@ public partial class MainWindow : Window
         AreaTitle.Text = "Lixeira";
         StatusText.Text = "A lixeira estará disponível quando um provedor compatível for conectado";
         SetSelectedNavigation(sender);
+    }
+
+    private void SettingsSection_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string section)
+            return;
+
+        SettingsConnectPage.IsVisible = section == "connect";
+        SettingsUploadPage.IsVisible = section == "upload";
+        SettingsTransfersPage.IsVisible = section == "transfers";
+        SettingsIntegrityPage.IsVisible = section == "integrity";
+        SettingsFolderPage.IsVisible = section == "folder";
+        SettingsSecurityPage.IsVisible = section == "security";
+        SettingsLocalDataPage.IsVisible = section == "local";
+
+        foreach (var item in this.GetVisualDescendants().OfType<Button>().Where(b => b.Click is not null))
+        {
+            if (item.Tag is string tag && new[] { "connect", "upload", "transfers", "integrity", "folder", "security", "local" }.Contains(tag))
+            {
+                item.Classes.Set("selected", tag == section);
+            }
+        }
     }
 
     private void Settings_Click(object? sender, RoutedEventArgs e)
