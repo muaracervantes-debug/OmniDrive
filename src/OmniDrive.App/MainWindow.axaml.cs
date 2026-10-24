@@ -117,6 +117,8 @@ public partial class MainWindow : Window
         TransferDetailSize = this.FindControl<TextBlock>(nameof(TransferDetailSize)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailSize");
         TransferDetailCredential = this.FindControl<TextBlock>(nameof(TransferDetailCredential)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailCredential");
         TransferDetailPart = this.FindControl<TextBlock>(nameof(TransferDetailPart)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailPart");
+        TelegramSetupPanel = this.FindControl<Border>(nameof(TelegramSetupPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramSetupPanel");
+        TelegramConnectionName = this.FindControl<TextBox>(nameof(TelegramConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectionName");
         TelegramApiId = this.FindControl<TextBox>(nameof(TelegramApiId)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiId");
         TelegramApiHash = this.FindControl<TextBox>(nameof(TelegramApiHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiHash");
         TelegramPhone = this.FindControl<TextBox>(nameof(TelegramPhone)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramPhone");
@@ -495,7 +497,7 @@ public partial class MainWindow : Window
     private void ShowTelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
         TelegramSetupPanel.IsVisible = true;
-        TelegramApiId.Focus();
+        TelegramApiId?.Focus();
         SettingsStatus.Text = "Informe as credenciais da aplicação e o número internacional da conta.";
     }
 
