@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:OmniDrive.App"
         x:Class="OmniDrive.App.MainWindow"
         Title="OmniDrive" Width="1440" Height="900" MinWidth="1020" MinHeight="680"
         WindowStartupLocation="CenterScreen" Background="#14121B" Foreground="#F4F0FA">
@@ -232,7 +233,7 @@
         <Border Height="1" Background="#342D3E"/>
         <ListBox x:Name="TransferItemsList" MaxHeight="330" Background="Transparent" BorderThickness="0" DoubleTapped="TransferItem_DoubleTapped">
           <ListBox.ItemTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="local:MainWindow.TransferQueueItem">
               <Border Background="#292431" CornerRadius="10" Padding="10" Margin="0,0,0,8">
                 <Grid ColumnDefinitions="34,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="9" RowSpacing="5">
                   <TextBlock Grid.RowSpan="3" Text="{Binding Icon}" FontSize="23" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#D6A8FF"/>
