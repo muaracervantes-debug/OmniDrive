@@ -492,6 +492,18 @@ public partial class MainWindow : Window
         return "Outro serviço compatível";
     }
 
+    private void ShowTelegramConnect_Click(object? sender, RoutedEventArgs e)
+    {
+        TelegramSetupPanel.IsVisible = true;
+        TelegramApiId.Focus();
+        SettingsStatus.Text = "Informe as credenciais da aplicação e o número internacional da conta.";
+    }
+
+    private void HideTelegramConnect_Click(object? sender, RoutedEventArgs e)
+    {
+        TelegramSetupPanel.IsVisible = false;
+    }
+
     private void LoadTelegramCredentials()
     {
         var credentials = TelegramCredentialStore.Load();
