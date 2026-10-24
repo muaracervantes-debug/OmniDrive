@@ -736,21 +736,6 @@ public partial class MainWindow : Window
         public bool VerifyDownloadHash { get; set; } = true;
     }
 
-    private Border TransferQueuePanel = null!;
-    private ListBox TransferItemsList = null!;
-    private TextBlock TransferQueueEmpty = null!;
-    private TextBlock TransferQueueCount = null!;
-    private Grid TransferDetailsOverlay = null!;
-    private TextBlock TransferDetailService = null!;
-    private TextBlock TransferDetailName = null!;
-    private TextBlock TransferDetailPercent = null!;
-    private TextBlock TransferDetailSpeed = null!;
-    private ProgressBar TransferDetailProgress = null!;
-    private TextBlock TransferDetailElapsed = null!;
-    private TextBlock TransferDetailSize = null!;
-    private TextBlock TransferDetailCredential = null!;
-    private TextBlock TransferDetailPart = null!;
-
     private void ToggleTransferQueue_Click(object? sender, RoutedEventArgs e)
     {
         TransferQueuePanel.IsVisible = !TransferQueuePanel.IsVisible;
