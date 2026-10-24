@@ -29,8 +29,60 @@ public partial class MainWindow : Window
         UpdateIntegrityWarnings();
     }
 
-    private void InitializeComponent() =>
+    private void InitializeComponent()
+    {
         Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+
+        // Explicitly bind named controls after loading the XAML. Without this,
+        // generated fields can remain null and crash the window constructor.
+        OverviewNav = this.FindControl<Button>(nameof(OverviewNav)) ?? throw new InvalidOperationException("Controle XAML não encontrado: OverviewNav");
+        CloudDriveNav = this.FindControl<Button>(nameof(CloudDriveNav)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudDriveNav");
+        TrashNav = this.FindControl<Button>(nameof(TrashNav)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TrashNav");
+        SettingsNav = this.FindControl<Button>(nameof(SettingsNav)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsNav");
+        DriveContent = this.FindControl<Grid>(nameof(DriveContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DriveContent");
+        AreaTitle = this.FindControl<TextBlock>(nameof(AreaTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: AreaTitle");
+        SearchBox = this.FindControl<TextBox>(nameof(SearchBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SearchBox");
+        FilterCount = this.FindControl<TextBlock>(nameof(FilterCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterCount");
+        FilterPanel = this.FindControl<Border>(nameof(FilterPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterPanel");
+        NameRuleMode = this.FindControl<ComboBox>(nameof(NameRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NameRuleMode");
+        SizeMinFilter = this.FindControl<TextBox>(nameof(SizeMinFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMinFilter");
+        SizeMaxFilter = this.FindControl<TextBox>(nameof(SizeMaxFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMaxFilter");
+        SizeRuleMode = this.FindControl<ComboBox>(nameof(SizeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeRuleMode");
+        DateFromFilter = this.FindControl<DatePicker>(nameof(DateFromFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateFromFilter");
+        DateToFilter = this.FindControl<DatePicker>(nameof(DateToFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateToFilter");
+        DateRuleMode = this.FindControl<ComboBox>(nameof(DateRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateRuleMode");
+        ExtensionFilter = this.FindControl<TextBox>(nameof(ExtensionFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ExtensionFilter");
+        ExtensionRuleMode = this.FindControl<ComboBox>(nameof(ExtensionRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ExtensionRuleMode");
+        ServiceFilter = this.FindControl<ComboBox>(nameof(ServiceFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ServiceFilter");
+        ServiceRuleMode = this.FindControl<ComboBox>(nameof(ServiceRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ServiceRuleMode");
+        CredentialFilter = this.FindControl<ComboBox>(nameof(CredentialFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CredentialFilter");
+        CredentialRuleMode = this.FindControl<ComboBox>(nameof(CredentialRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CredentialRuleMode");
+        FavoritesFilter = this.FindControl<ComboBox>(nameof(FavoritesFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesFilter");
+        FavoritesRuleMode = this.FindControl<ComboBox>(nameof(FavoritesRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesRuleMode");
+        TypeFilter = this.FindControl<ComboBox>(nameof(TypeFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeFilter");
+        TypeRuleMode = this.FindControl<ComboBox>(nameof(TypeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeRuleMode");
+        BackButton = this.FindControl<Button>(nameof(BackButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BackButton");
+        BreadcrumbCurrent = this.FindControl<TextBlock>(nameof(BreadcrumbCurrent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbCurrent");
+        SelectionCount = this.FindControl<TextBlock>(nameof(SelectionCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectionCount");
+        SelectAllCheckBox = this.FindControl<CheckBox>(nameof(SelectAllCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectAllCheckBox");
+        EmptyFilesState = this.FindControl<Grid>(nameof(EmptyFilesState)) ?? throw new InvalidOperationException("Controle XAML não encontrado: EmptyFilesState");
+        DetailsPanel = this.FindControl<Border>(nameof(DetailsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DetailsPanel");
+        SettingsContent = this.FindControl<ScrollViewer>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
+        NewConnectionService = this.FindControl<ComboBox>(nameof(NewConnectionService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionService");
+        NewConnectionName = this.FindControl<TextBox>(nameof(NewConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionName");
+        ConnectionsList = this.FindControl<ListBox>(nameof(ConnectionsList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ConnectionsList");
+        UploadLimitConnection = this.FindControl<ComboBox>(nameof(UploadLimitConnection)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadLimitConnection");
+        UploadLimitValue = this.FindControl<TextBox>(nameof(UploadLimitValue)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadLimitValue");
+        MaxUploadsValue = this.FindControl<TextBox>(nameof(MaxUploadsValue)) ?? throw new InvalidOperationException("Controle XAML não encontrado: MaxUploadsValue");
+        MaxDownloadsValue = this.FindControl<TextBox>(nameof(MaxDownloadsValue)) ?? throw new InvalidOperationException("Controle XAML não encontrado: MaxDownloadsValue");
+        VerifyUploadHash = this.FindControl<CheckBox>(nameof(VerifyUploadHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: VerifyUploadHash");
+        UploadIntegrityWarning = this.FindControl<TextBlock>(nameof(UploadIntegrityWarning)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadIntegrityWarning");
+        VerifyDownloadHash = this.FindControl<CheckBox>(nameof(VerifyDownloadHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: VerifyDownloadHash");
+        DownloadIntegrityWarning = this.FindControl<TextBlock>(nameof(DownloadIntegrityWarning)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadIntegrityWarning");
+        DefaultDownloadFolder = this.FindControl<TextBox>(nameof(DefaultDownloadFolder)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DefaultDownloadFolder");
+        SettingsStatus = this.FindControl<TextBlock>(nameof(SettingsStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsStatus");
+        StatusText = this.FindControl<TextBlock>(nameof(StatusText)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StatusText");
+    }
 
     private void Overview_Click(object? sender, RoutedEventArgs e)
     {
