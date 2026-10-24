@@ -8,12 +8,15 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using WTelegram;
 
 namespace OmniDrive.App;
 
 public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
+    private Client? _telegramClient;
+    private string? _telegramPendingKind;
     private readonly List<string> _connections = new();
     private readonly Dictionary<string, string> _uploadLimits = new();
     private readonly string _settingsPath = Path.Combine(
@@ -25,8 +28,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         LoadSettings();
+        LoadTelegramCredentials();
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
+        Closed += (_, _) => _telegramClient?.Dispose();
     }
 
     private void InitializeComponent()
@@ -82,6 +87,14 @@ public partial class MainWindow : Window
         DefaultDownloadFolder = this.FindControl<TextBox>(nameof(DefaultDownloadFolder)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DefaultDownloadFolder");
         SettingsStatus = this.FindControl<TextBlock>(nameof(SettingsStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsStatus");
         StatusText = this.FindControl<TextBlock>(nameof(StatusText)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StatusText");
+        TelegramApiId = this.FindControl<TextBox>(nameof(TelegramApiId)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiId");
+        TelegramApiHash = this.FindControl<TextBox>(nameof(TelegramApiHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiHash");
+        TelegramPhone = this.FindControl<TextBox>(nameof(TelegramPhone)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramPhone");
+        TelegramLoginInputPanel = this.FindControl<StackPanel>(nameof(TelegramLoginInputPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramLoginInputPanel");
+        TelegramLoginLabel = this.FindControl<TextBlock>(nameof(TelegramLoginLabel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramLoginLabel");
+        TelegramLoginInput = this.FindControl<TextBox>(nameof(TelegramLoginInput)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramLoginInput");
+        TelegramConnectButton = this.FindControl<Button>(nameof(TelegramConnectButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectButton");
+        TelegramStatus = this.FindControl<TextBlock>(nameof(TelegramStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramStatus");
     }
 
     private void Overview_Click(object? sender, RoutedEventArgs e)
@@ -425,6 +438,167 @@ public partial class MainWindow : Window
         if (combo.SelectedItem is ComboBoxItem item)
             return item.Content?.ToString() ?? "Outro serviço compatível";
         return "Outro serviço compatível";
+    }
+
+    private void LoadTelegramCredentials()
+    {
+        var credentials = TelegramCredentialStore.Load();
+        if (credentials is null)
+            return;
+
+        TelegramApiId.Text = credentials.ApiId;
+        TelegramApiHash.Text = credentials.ApiHash;
+        TelegramPhone.Text = credentials.PhoneNumber;
+        TelegramStatus.Text = "Credenciais recuperadas do armazenamento protegido do Windows. Pressione Conectar para restaurar a sessão.";
+    }
+
+    private async void TelegramConnect_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_telegramClient?.User is not null)
+        {
+            TelegramStatus.Text = $"Já conectado ao Telegram como {_telegramClient.User}.";
+            return;
+        }
+
+        TelegramConnectButton.IsEnabled = false;
+        try
+        {
+            string loginInfo;
+            if (_telegramClient is null)
+            {
+                if (!int.TryParse(TelegramApiId.Text?.Trim(), out var apiId) || apiId <= 0)
+                {
+                    TelegramStatus.Text = "Informe um API ID numérico válido.";
+                    return;
+                }
+
+                var apiHash = TelegramApiHash.Text?.Trim();
+                var phone = TelegramPhone.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(apiHash) || string.IsNullOrWhiteSpace(phone))
+                {
+                    TelegramStatus.Text = "Informe o API Hash e o número de telefone com código do país.";
+                    return;
+                }
+
+                var credentials = new TelegramCredentials(apiId.ToString(), apiHash, phone);
+                TelegramCredentialStore.Save(credentials);
+                _telegramClient = new Client(apiId, apiHash, TelegramCredentialStore.SessionPath);
+                _telegramPendingKind = "phone_number";
+                loginInfo = phone;
+                TelegramStatus.Text = "Conectando ao Telegram...";
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(_telegramPendingKind))
+                {
+                    TelegramStatus.Text = "A conexão já foi iniciada. Verifique a etapa de autenticação solicitada.";
+                    return;
+                }
+
+                loginInfo = _telegramPendingKind switch
+                {
+                    "phone_number" => TelegramPhone.Text?.Trim() ?? "",
+                    _ => TelegramLoginInput.Text?.Trim() ?? ""
+                };
+
+                if (string.IsNullOrWhiteSpace(loginInfo))
+                {
+                    TelegramStatus.Text = "Preencha a informação solicitada pelo Telegram para continuar.";
+                    return;
+                }
+            }
+
+            var requested = await _telegramClient.Login(loginInfo);
+            if (_telegramClient.User is not null)
+            {
+                _telegramPendingKind = null;
+                TelegramLoginInputPanel.IsVisible = false;
+                TelegramLoginInput.Text = "";
+                TelegramConnectButton.Content = "Conectado";
+                TelegramStatus.Text = $"Conectado ao Telegram como {_telegramClient.User}. As credenciais e a sessão foram salvas para próximas versões.";
+                return;
+            }
+
+            _telegramPendingKind = requested;
+            switch (requested)
+            {
+                case "verification_code":
+                    TelegramLoginLabel.Text = "Código de verificação enviado pelo Telegram";
+                    TelegramLoginInput.Watermark = "Digite o código recebido";
+                    TelegramLoginInput.PasswordChar = '\0';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Confirmar código";
+                    TelegramStatus.Text = "O Telegram solicitou um código de verificação. Insira-o abaixo e pressione Confirmar código.";
+                    break;
+                case "password":
+                    TelegramLoginLabel.Text = "Senha de verificação em duas etapas (2FA)";
+                    TelegramLoginInput.Watermark = "Senha da conta Telegram";
+                    TelegramLoginInput.PasswordChar = '●';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Confirmar senha";
+                    TelegramStatus.Text = "Sua conta exige a senha de verificação em duas etapas.";
+                    break;
+                case "name":
+                    TelegramLoginLabel.Text = "Nome completo";
+                    TelegramLoginInput.Watermark = "Nome e sobrenome";
+                    TelegramLoginInput.PasswordChar = '\0';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Continuar";
+                    TelegramStatus.Text = "O Telegram solicitou um nome para concluir o cadastro da conta.";
+                    break;
+                case "email":
+                    TelegramLoginLabel.Text = "E-mail";
+                    TelegramLoginInput.Watermark = "Seu e-mail";
+                    TelegramLoginInput.PasswordChar = '\0';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Continuar";
+                    TelegramStatus.Text = "O Telegram solicitou um endereço de e-mail para a verificação.";
+                    break;
+                case "email_verification_code":
+                    TelegramLoginLabel.Text = "Código enviado por e-mail";
+                    TelegramLoginInput.Watermark = "Código de verificação do e-mail";
+                    TelegramLoginInput.PasswordChar = '\0';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Confirmar código";
+                    TelegramStatus.Text = "Digite o código enviado para o e-mail solicitado pelo Telegram.";
+                    break;
+                case null:
+                    TelegramStatus.Text = "O Telegram ainda não confirmou a conexão. Tente novamente.";
+                    break;
+                default:
+                    TelegramLoginLabel.Text = $"Informação solicitada: {requested}";
+                    TelegramLoginInput.Watermark = "Digite a informação solicitada";
+                    TelegramLoginInput.PasswordChar = '\0';
+                    TelegramLoginInputPanel.IsVisible = true;
+                    TelegramConnectButton.Content = "Continuar";
+                    TelegramStatus.Text = $"O Telegram solicitou uma etapa adicional: {requested}.";
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            TelegramStatus.Text = $"Não foi possível concluir a conexão: {ex.Message}";
+        }
+        finally
+        {
+            TelegramConnectButton.IsEnabled = true;
+        }
+    }
+
+    private void TelegramForget_Click(object? sender, RoutedEventArgs e)
+    {
+        _telegramClient?.Dispose();
+        _telegramClient = null;
+        _telegramPendingKind = null;
+        TelegramCredentialStore.ClearCredentials();
+        TelegramCredentialStore.ClearSession();
+        TelegramApiId.Text = "";
+        TelegramApiHash.Text = "";
+        TelegramPhone.Text = "";
+        TelegramLoginInput.Text = "";
+        TelegramLoginInputPanel.IsVisible = false;
+        TelegramConnectButton.Content = "Conectar ao Telegram";
+        TelegramStatus.Text = "Credenciais e sessão local removidas. Para revogar a sessão no Telegram, acesse Configurações > Dispositivos no aplicativo Telegram.";
     }
 
     private void LoadSettings()
