@@ -1,0 +1,273 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:OmniDrive.App"
+        x:Class="OmniDrive.App.MainWindow"
+        Title="OmniDrive" Width="1440" Height="900" MinWidth="1020" MinHeight="680"
+        WindowStartupLocation="CenterScreen" Background="#14121B" Foreground="#F4F0FA">
+  <Window.Styles>
+    <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#A49CAF"/></Style>
+    <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#BEB6CB"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Padding" Value="14,12"/><Setter Property="CornerRadius" Value="10"/><Setter Property="FontSize" Value="14"/></Style>
+    <Style Selector="Button.nav:pointerover"><Setter Property="Background" Value="#292431"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector="Button.nav.selected"><Setter Property="Background" Value="#382844"/><Setter Property="Foreground" Value="#DCA8FF"/></Style>
+    <Style Selector="Button.action"><Setter Property="Background" Value="#A855F7"/><Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="Padding" Value="15,9"/><Setter Property="CornerRadius" Value="9"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.ghost"><Setter Property="Background" Value="#272330"/><Setter Property="Foreground" Value="#E8E0F2"/><Setter Property="Padding" Value="11,8"/><Setter Property="CornerRadius" Value="9"/></Style>
+    <Style Selector="Border.panel"><Setter Property="Background" Value="#201D28"/><Setter Property="BorderBrush" Value="#332D3D"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="14"/></Style>
+    <Style Selector="TextBox.search"><Setter Property="Background" Value="#25212D"/><Setter Property="Foreground" Value="#F4F0FA"/><Setter Property="BorderBrush" Value="#393242"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12,9"/></Style>
+  </Window.Styles>
+  <Grid ColumnDefinitions="224,*">
+    <Border Grid.Column="0" Background="#1B1823" BorderBrush="#302A39" BorderThickness="0,0,1,0" Padding="16">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="4,8,0,28">
+          <Border Width="38" Height="38" CornerRadius="12" Background="#A855F7"><TextBlock Text="O" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <StackPanel VerticalAlignment="Center" Spacing="1"><TextBlock Text="OmniDrive" FontSize="20" FontWeight="Bold"/><TextBlock Text="UNIFIED STORAGE" FontSize="9" Classes="muted"/></StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="6">
+          <TextBlock Text="ESPAÇO DE TRABALHO" Classes="muted" FontSize="10" FontWeight="Bold" Margin="10,0,0,8"/>
+          <Button x:Name="OverviewNav" Classes="nav" Click="Overview_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▦" FontSize="17"/><TextBlock Text="Visão geral" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="CloudDriveNav" Classes="nav selected" Click="CloudDrive_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▤" FontSize="17"/><TextBlock Text="Drive na nuvem" VerticalAlignment="Center"/></StackPanel></Button>
+          <Button x:Name="TrashNav" Classes="nav" Click="Trash_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="▱" FontSize="18"/><TextBlock Text="Lixeira" VerticalAlignment="Center"/></StackPanel></Button>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Spacing="8">
+          <Button x:Name="SettingsNav" Classes="nav" Click="Settings_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="⚙" FontSize="17"/><TextBlock Text="Configurações" VerticalAlignment="Center"/></StackPanel></Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Column="1" RowDefinitions="*">
+      <Grid Grid.Row="0" ColumnDefinitions="*,300">
+        <Grid x:Name="DriveContent" Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
+            <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
+            <TextBox x:Name="SearchBox" Grid.Column="1" Classes="search" Width="420" Watermark="Buscar por nome..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <Button Grid.Column="2" Classes="ghost" Click="ToggleFilters_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="☷" FontSize="16"/><TextBlock Text="Filtros"/><TextBlock x:Name="FilterCount" Text="" Foreground="#D6A8FF"/></StackPanel></Button>
+            <Border x:Name="FilterPanel" Grid.Row="1" Grid.ColumnSpan="3" Classes="panel" Padding="14" IsVisible="False">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+                  <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5"><TextBlock Text="Nome" FontSize="11" Classes="muted"/><ComboBox x:Name="NameRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox><TextBlock Text="Use a pesquisa acima" FontSize="10" Classes="muted"/></StackPanel>
+                  <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5"><TextBlock Text="Tamanho (bytes)" FontSize="11" Classes="muted"/><Grid ColumnDefinitions="*,*" ColumnSpacing="6"><TextBox x:Name="SizeMinFilter" Watermark="Mínimo"/><TextBox x:Name="SizeMaxFilter" Watermark="Máximo" Grid.Column="1"/></Grid><ComboBox x:Name="SizeRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="0" Grid.Column="2" Spacing="5"><TextBlock Text="Data de upload/modificação" FontSize="11" Classes="muted"/><Grid ColumnDefinitions="*,*" ColumnSpacing="6"><DatePicker x:Name="DateFromFilter"/><DatePicker x:Name="DateToFilter" Grid.Column="1"/></Grid><ComboBox x:Name="DateRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="0" Grid.Column="3" Spacing="5"><TextBlock Text="Extensão" FontSize="11" Classes="muted"/><TextBox x:Name="ExtensionFilter" Watermark="Ex.: .pdf, .png"/><ComboBox x:Name="ExtensionRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5"><TextBlock Text="Serviço" FontSize="11" Classes="muted"/><ComboBox x:Name="ServiceFilter" SelectedIndex="0"><ComboBoxItem Content="Todos os serviços"/><ComboBoxItem Content="Telegram"/><ComboBoxItem Content="Outro serviço integrado"/></ComboBox><ComboBox x:Name="ServiceRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5"><TextBlock Text="Credencial / conta" FontSize="11" Classes="muted"/><ComboBox x:Name="CredentialFilter" SelectedIndex="0"><ComboBoxItem Content="Todas as contas"/><ComboBoxItem Content="Selecionar conta conectada"/></ComboBox><ComboBox x:Name="CredentialRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="2" Spacing="5"><TextBlock Text="Favoritos" FontSize="11" Classes="muted"/><ComboBox x:Name="FavoritesFilter" SelectedIndex="0"><ComboBoxItem Content="Todos os itens"/><ComboBoxItem Content="Somente favoritos"/></ComboBox><ComboBox x:Name="FavoritesRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="3" Spacing="5"><TextBlock Text="Tipo" FontSize="11" Classes="muted"/><ComboBox x:Name="TypeFilter" SelectedIndex="0"><ComboBoxItem Content="Arquivos e pastas"/><ComboBoxItem Content="Somente arquivos"/><ComboBoxItem Content="Somente pastas"/></ComboBox><ComboBox x:Name="TypeRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="ClearFilters_Click" Content="Limpar filtros"/><Button Classes="action" Click="ApplyFilters_Click" Content="Aplicar filtros"/></StackPanel>
+              </StackPanel>
+            </Border>
+            <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" Margin="0,2,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Click="Back_Click" IsEnabled="False" x:Name="BackButton" Content="← Voltar"/>
+                <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
+                <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
+              </StackPanel>
+              <Button Grid.Column="1" HorizontalAlignment="Right" Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button>
+            </Grid>
+          </Grid>
+          <Border Grid.Row="1" Classes="panel" Padding="0" VerticalAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*">
+              <Border BorderBrush="#332D3D" BorderThickness="0,0,0,1" Padding="14,12">
+                <Grid ColumnDefinitions="34,*,105,130,26" ColumnSpacing="8">
+                  <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" IsEnabled="False"/>
+                  <TextBlock Grid.Column="1" Text="Nome" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2" Text="Tamanho" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="3" Text="Modificado" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="4" Text="" />
+                </Grid>
+              </Border>
+              <Grid Grid.Row="1" x:Name="EmptyFilesState" Margin="24">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360" Spacing="10">
+                  <Border Width="58" Height="58" CornerRadius="18" Background="#332641"><TextBlock Text="▤" FontSize="29" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                  <TextBlock Text="Nenhum arquivo disponível" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                  <TextBlock Text="Conecte um serviço para carregar a lista. Os arquivos e seus metadados serão exibidos aqui quando o provedor fornecer essas informações." Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Grid>
+            </Grid>
+          </Border>
+        </Grid>
+        <Border Grid.Column="1" x:Name="DetailsPanel" Background="#1B1823" BorderBrush="#302A39" BorderThickness="1,0,0,0" Padding="18">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="4"><TextBlock Text="Detalhes" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="Metadados do item selecionado" Classes="muted" FontSize="11"/></StackPanel><Button Grid.Column="1" Classes="ghost" Content="›" Click="ToggleDetails_Click" ToolTip.Tip="Recolher painel"/></Grid>
+            <Border Grid.Row="1" Background="#292431" CornerRadius="12" Padding="14" Margin="0,18,0,16">
+              <StackPanel Spacing="8"><Border Width="42" Height="42" CornerRadius="12" Background="#382844" HorizontalAlignment="Left"><TextBlock Text="?" FontSize="22" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="Nenhum item selecionado" FontWeight="SemiBold"/><TextBlock Text="Selecione um arquivo para ver os detalhes fornecidos pelo serviço." Classes="muted" FontSize="11" TextWrapping="Wrap"/></StackPanel>
+            </Border>
+            <ScrollViewer Grid.Row="2">
+              <StackPanel Spacing="14">
+                <TextBlock Text="INFORMAÇÕES" Classes="muted" FontSize="10" FontWeight="Bold"/>
+                <StackPanel Spacing="4"><TextBlock Text="Nome" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Tipo / extensão" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Data de modificação" Classes="muted" FontSize="11"/><TextBlock Text="Não fornecida pelo serviço" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Border Height="1" Background="#342D3E"/>
+                <TextBlock Text="ORIGEM" Classes="muted" FontSize="10" FontWeight="Bold"/>
+                <StackPanel Spacing="4"><TextBlock Text="Serviço" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Conta / credencial" Classes="muted" FontSize="11"/><TextBlock Text="Não conectado" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Pasta" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <Border Height="1" Background="#342D3E"/>
+                <TextBlock Text="INTEGRIDADE" Classes="muted" FontSize="10" FontWeight="Bold"/>
+                <StackPanel Spacing="4"><TextBlock Text="Partes do arquivo" Classes="muted" FontSize="11"/><TextBlock Text="Não aplicável ou desconhecido" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Verificação" Classes="muted" FontSize="11"/><TextBlock Text="Não verificada" FontSize="12"/></StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+        <Grid x:Name="SettingsContent" Grid.ColumnSpan="2" IsVisible="False" ColumnDefinitions="230,*">
+          <Border Grid.Column="0" Background="#1B1823" BorderBrush="#302A39" BorderThickness="0,0,1,0" Padding="14">
+            <StackPanel Spacing="6">
+              <TextBlock Text="CONFIGURAÇÕES" Classes="muted" FontSize="10" FontWeight="Bold" Margin="8,8,0,10"/>
+              <Button Classes="nav selected" Tag="connect" Click="SettingsSection_Click" Content="Conectar serviços"/>
+              <Button Classes="nav" Tag="upload" Click="SettingsSection_Click" Content="Limites de upload"/>
+              <Button Classes="nav" Tag="transfers" Click="SettingsSection_Click" Content="Transferências simultâneas"/>
+              <Button Classes="nav" Tag="integrity" Click="SettingsSection_Click" Content="Integridade"/>
+              <Button Classes="nav" Tag="folder" Click="SettingsSection_Click" Content="Pasta de download padrão"/>
+              <Button Classes="nav" Tag="security" Click="SettingsSection_Click" Content="Segurança"/>
+              <Button Classes="nav" Tag="local" Click="SettingsSection_Click" Content="Dados locais"/>
+            </StackPanel>
+          </Border>
+          <ScrollViewer x:Name="SettingsConnectPage" IsVisible="True" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/><TextBlock x:Name="SettingsStatus" Text="Preferências locais." Classes="muted" FontSize="11"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="1. Conectar ao Telegram" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock Text="Use as credenciais da sua aplicação Telegram. Você pode obtê-las em my.telegram.org/apps. A sessão e as credenciais ficam salvas neste Windows para reutilização em versões futuras." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="API ID" FontSize="12"/>
+                    <TextBox x:Name="TelegramApiId" Watermark="Ex.: 123456"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="API Hash" FontSize="12"/>
+                    <TextBox x:Name="TelegramApiHash" PasswordChar="●" Watermark="API Hash da aplicação"/>
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Número de telefone com código do país" FontSize="12"/>
+                  <TextBox x:Name="TelegramPhone" Watermark="Ex.: +5511999999999"/>
+                </StackPanel>
+                <StackPanel Spacing="5" IsVisible="False" x:Name="TelegramLoginInputPanel">
+                  <TextBlock x:Name="TelegramLoginLabel" Text="Código de verificação" FontSize="12"/>
+                  <TextBox x:Name="TelegramLoginInput" Watermark="Digite a informação solicitada"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="TelegramConnectButton" Classes="action" Click="TelegramConnect_Click" Content="Conectar ao Telegram"/>
+                  <Button Classes="ghost" Click="TelegramForget_Click" Content="Apagar credenciais salvas"/>
+                </StackPanel>
+                <TextBlock x:Name="TelegramStatus" Text="Desconectado. Nenhuma credencial foi carregada." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="Conexões adicionais (cadastro local)" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Este cadastro organiza conexões futuras; a autenticação real do Telegram é feita no painel acima." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="180,*,Auto,Auto" ColumnSpacing="10">
+                  <ComboBox x:Name="NewConnectionService" SelectedIndex="0"><ComboBoxItem Content="Outro serviço compatível"/></ComboBox>
+                  <TextBox x:Name="NewConnectionName" Grid.Column="1" Watermark="Nome da conexão (ex.: Telegram pessoal)"/>
+                  <Button Grid.Column="2" Classes="action" Click="AddConnection_Click" Content="＋ Adicionar"/>
+                  <Button Grid.Column="3" Classes="ghost" Click="EditConnection_Click" Content="Editar selecionada"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <ListBox x:Name="ConnectionsList" MinHeight="70" MaxHeight="150" SelectionChanged="ConnectionsList_SelectionChanged"/>
+                  <Button Grid.Column="1" Classes="ghost" Click="DeleteConnection_Click" Content="Excluir selecionada" VerticalAlignment="Top"/>
+                </Grid>
+                <TextBlock Text="A conexão com o serviço e a autenticação real serão habilitadas na integração do provedor. Esta seção permite organizar as conexões cadastradas." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsUploadPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="2. Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="220,180,Auto" ColumnSpacing="10">
+                  <ComboBox x:Name="UploadLimitConnection" Grid.Column="0" SelectionChanged="UploadLimitConnection_SelectionChanged"/>
+                  <TextBox x:Name="UploadLimitValue" Grid.Column="1" Watermark="Limite em MB" Text="0"/>
+                  <Button Grid.Column="2" Classes="action" Click="SaveUploadLimit_Click" Content="Salvar limite"/>
+                </Grid>
+                <TextBlock Text="Ao colocar 0 não haverá limite de upload." Foreground="#D6A8FF" FontSize="12"/>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsTransfersPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="14">
+                <StackPanel Spacing="4"><TextBlock Text="3. Transferências simultâneas" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="O excedente permanece na fila até que uma transferência ativa termine." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="220,180,220,180" ColumnSpacing="10">
+                  <TextBlock Text="Máximo de uploads simultâneos" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBox x:Name="MaxUploadsValue" Grid.Column="1" Text="4" Watermark="Padrão: 4"/>
+                  <TextBlock Grid.Column="2" Text="Máximo de downloads simultâneos" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBox x:Name="MaxDownloadsValue" Grid.Column="3" Text="4" Watermark="Padrão: 4"/>
+                </Grid>
+                <Button Classes="action" HorizontalAlignment="Right" Click="SaveTransferSettings_Click" Content="Salvar limites de transferência"/>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsIntegrityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4"><TextBlock Text="4. Integridade" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Cada verificação pode ser ativada ou desativada independentemente." Classes="muted" FontSize="12"/></StackPanel>
+                <CheckBox x:Name="VerifyUploadHash" Content="Criar hash durante o upload" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
+                <TextBlock x:Name="UploadIntegrityWarning" Text="Desativar esta opção significa que a integridade do upload não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
+                <CheckBox x:Name="VerifyDownloadHash" Content="Verificar hash durante o download" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
+                <TextBlock x:Name="DownloadIntegrityWarning" Text="Desativar esta opção significa que a integridade do download não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
+                <Button Classes="action" HorizontalAlignment="Right" Click="SaveIntegritySettings_Click" Content="Salvar opções de integridade"/>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsFolderPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4"><TextBlock Text="5. Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Recurso previsto para uma versão futura. Até lá, o destino deverá ser escolhido em cada download." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <TextBox x:Name="DefaultDownloadFolder" IsReadOnly="True" Watermark="Ainda não configurável nesta versão"/>
+                  <Button Grid.Column="1" Classes="ghost" Content="Selecionar pasta" IsEnabled="False"/>
+                </Grid>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsSecurityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+              <StackPanel Spacing="10">
+                <TextBlock Text="6. Segurança e dados locais" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="As preferências e os limites configurados serão mantidos localmente. Os dados locais não devem ser a única fonte para identificar partes de arquivos nem para recuperar hashes." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="As credenciais ainda não são coletadas nesta tela. A proteção de tokens e sessões deverá ser implementada junto à autenticação de cada provedor, usando armazenamento seguro do sistema operacional." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border></StackPanel></ScrollViewer>
+          <ScrollViewer x:Name="SettingsLocalDataPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18"><StackPanel Spacing="10"><TextBlock Text="Dados locais" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="As preferências do OmniDrive ficam no perfil local do Windows e permanecem disponíveis após baixar uma nova versão." Classes="muted" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="Local das preferências:" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="%LOCALAPPDATA%\OmniDrive\settings.json" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="A sessão do Telegram é armazenada separadamente e protegida por usuário do Windows." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel></Border></StackPanel></ScrollViewer>
+        </Grid>
+      </Grid>
+    </Grid>
+  <TextBlock x:Name="StatusText" IsVisible="False" />
+  <StackPanel Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
+    <Border x:Name="TransferQueuePanel" Classes="panel" Width="440" MaxHeight="430" Padding="14" IsVisible="False">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3"><TextBlock Text="Fila de transferência" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="Em andamento e aguardando execução" Classes="muted" FontSize="11"/></StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="⌄" Click="ToggleTransferQueue_Click" ToolTip.Tip="Recolher fila"/>
+        </Grid>
+        <Border Height="1" Background="#342D3E"/>
+        <ListBox x:Name="TransferItemsList" MaxHeight="330" Background="Transparent" BorderThickness="0" DoubleTapped="TransferItem_DoubleTapped">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="local:MainWindow.TransferQueueItem">
+              <Border Background="#292431" CornerRadius="10" Padding="10" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="34,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="9" RowSpacing="5">
+                  <TextBlock Grid.RowSpan="3" Text="{Binding Icon}" FontSize="23" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#D6A8FF"/>
+                  <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <Button Grid.Column="2" Grid.Row="0" Grid.RowSpan="2" Tag="{Binding}" Click="RemoveTransfer_Click" Classes="ghost" Content="×" Padding="8,2" ToolTip.Tip="Cancelar e remover"/>
+                  <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="{Binding Percentage}"/>
+                  <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ProgressLabel}" Classes="muted" FontSize="10"/>
+                  <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding PartDescription}" Foreground="#D6A8FF" FontSize="10" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock x:Name="TransferQueueEmpty" Text="Nenhuma transferência na fila." Classes="muted" FontSize="12" HorizontalAlignment="Center" Margin="0,8" IsVisible="True"/>
+        <TextBlock Text="Dê duplo clique em uma transferência para ver os detalhes." Classes="muted" FontSize="10" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+    <Button x:Name="TransferQueueButton" Classes="action" Click="ToggleTransferQueue_Click" HorizontalAlignment="Right" Padding="16,11">
+      <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="⇅" FontSize="17"/><TextBlock Text="Fila de transferência"/><TextBlock x:Name="TransferQueueCount" Text="0 / 0" Foreground="#F3DFFF" FontWeight="Bold"/></StackPanel>
+    </Button>
+  </StackPanel>
+  <Grid x:Name="TransferDetailsOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990A0810" ZIndex="20" PointerPressed="TransferDetailsOverlay_PointerPressed">
+    <Border Classes="panel" Width="520" MaxHeight="650" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="TransferDetailsCard_PointerPressed">
+      <StackPanel Spacing="14">
+        <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="3"><TextBlock Text="Detalhes da transferência" FontSize="19" FontWeight="Bold"/><TextBlock x:Name="TransferDetailService" Text="Serviço: —" Classes="muted" FontSize="11"/></StackPanel><Button Grid.Column="1" Classes="ghost" Content="×" Click="CloseTransferDetails_Click"/></Grid>
+        <TextBlock x:Name="TransferDetailName" Text="Nome: —" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="*,Auto"><TextBlock x:Name="TransferDetailPercent" Text="Progresso: 0%" Classes="muted" FontSize="12"/><TextBlock x:Name="TransferDetailSpeed" Grid.Column="1" Text="Velocidade: —" Classes="muted" FontSize="12"/></Grid>
+        <ProgressBar x:Name="TransferDetailProgress" Minimum="0" Maximum="100" Value="0" Height="10"/>
+        <Grid ColumnDefinitions="*,*"><StackPanel Spacing="4"><TextBlock Text="Tempo decorrido" Classes="muted" FontSize="11"/><TextBlock x:Name="TransferDetailElapsed" Text="—" FontSize="12"/></StackPanel><StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock x:Name="TransferDetailSize" Text="—" FontSize="12"/></StackPanel></Grid>
+        <TextBlock x:Name="TransferDetailCredential" Text="Credencial: —" Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+        <TextBlock x:Name="TransferDetailPart" Text="Parte: —" Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+        <TextBlock Text="Clique fora deste painel para fechar." Classes="muted" FontSize="10"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+  </Grid>
+</Window>

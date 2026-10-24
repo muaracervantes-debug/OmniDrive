@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OmniDrive.Core/OmniDrive.Core.csproj" />
+    <Project Path="src/OmniDrive.Application/OmniDrive.Application.csproj" />
+    <Project Path="src/OmniDrive.Providers.Telegram/OmniDrive.Providers.Telegram.csproj" />
+    <Project Path="src/OmniDrive.App/OmniDrive.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OmniDrive.Core.Tests/OmniDrive.Core.Tests.csproj" />
+    <Project Path="tests/OmniDrive.Application.Tests/OmniDrive.Application.Tests.csproj" />
+  </Folder>
+</Solution>
