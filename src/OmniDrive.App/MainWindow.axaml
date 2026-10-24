@@ -137,7 +137,7 @@
               <StackPanel Spacing="14">
                 <StackPanel Spacing="4"><TextBlock Text="2. Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="220,180,Auto" ColumnSpacing="10">
-                  <ComboBox x:Name="UploadLimitConnection" Grid.Column="0" Watermark="Selecione uma conexão" SelectionChanged="UploadLimitConnection_SelectionChanged"/>
+                  <ComboBox x:Name="UploadLimitConnection" Grid.Column="0" SelectionChanged="UploadLimitConnection_SelectionChanged"/>
                   <TextBox x:Name="UploadLimitValue" Grid.Column="1" Watermark="Limite em MB" Text="0"/>
                   <Button Grid.Column="2" Classes="action" Click="SaveUploadLimit_Click" Content="Salvar limite"/>
                 </Grid>
