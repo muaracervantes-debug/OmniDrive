@@ -124,7 +124,7 @@
               <Button Classes="nav" Tag="local" Click="SettingsSection_Click" Content="Dados locais"/>
             </StackPanel>
           </Border>
-          <ScrollViewer x:Name="SettingsConnectPage" IsVisible="True" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+          <ScrollViewer x:Name="SettingsConnectPage" IsVisible="True" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/><TextBlock x:Name="SettingsStatus" Text="Preferências locais." Classes="muted" FontSize="11"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
                 <StackPanel Spacing="4">
                   <TextBlock Text="1. Conectar ao Telegram" FontSize="17" FontWeight="SemiBold"/>
