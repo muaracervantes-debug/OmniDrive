@@ -118,6 +118,7 @@ public partial class MainWindow : Window
         TransferDetailCredential = this.FindControl<TextBlock>(nameof(TransferDetailCredential)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailCredential");
         TransferDetailPart = this.FindControl<TextBlock>(nameof(TransferDetailPart)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailPart");
         TelegramSetupPanel = this.FindControl<Border>(nameof(TelegramSetupPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramSetupPanel");
+        TelegramSetupOverlay = this.FindControl<Grid>(nameof(TelegramSetupOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramSetupOverlay");
         TelegramConnectionName = this.FindControl<TextBox>(nameof(TelegramConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectionName");
         TelegramApiId = this.FindControl<TextBox>(nameof(TelegramApiId)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiId");
         TelegramApiHash = this.FindControl<TextBox>(nameof(TelegramApiHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiHash");
@@ -496,14 +497,25 @@ public partial class MainWindow : Window
 
     private void ShowTelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
-        TelegramSetupPanel.IsVisible = true;
+        TelegramSetupOverlay.IsVisible = true;
         TelegramApiId?.Focus();
         SettingsStatus.Text = "Informe as credenciais da aplicação e o número internacional da conta.";
     }
 
     private void HideTelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
-        TelegramSetupPanel.IsVisible = false;
+        TelegramSetupOverlay.IsVisible = false;
+    }
+
+    private void TelegramSetupOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source == TelegramSetupOverlay)
+            TelegramSetupOverlay.IsVisible = false;
+    }
+
+    private void TelegramSetupCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true;
     }
 
     private void LoadTelegramCredentials()
