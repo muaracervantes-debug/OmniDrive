@@ -331,9 +331,11 @@ public partial class MainWindow : Window
 
     private void UpdateIntegrityWarnings()
     {
-        if (UploadIntegrityWarning is not null)
+        // Avalonia may raise Checked/Unchecked while loading XAML, before all named
+        // controls have been created. Guard both the options and their warnings.
+        if (UploadIntegrityWarning is not null && VerifyUploadHash is not null)
             UploadIntegrityWarning.IsVisible = VerifyUploadHash.IsChecked != true;
-        if (DownloadIntegrityWarning is not null)
+        if (DownloadIntegrityWarning is not null && VerifyDownloadHash is not null)
             DownloadIntegrityWarning.IsVisible = VerifyDownloadHash.IsChecked != true;
     }
 
