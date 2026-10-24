@@ -28,12 +28,10 @@
         </StackPanel>
         <StackPanel Grid.Row="2" Spacing="8">
           <Button x:Name="SettingsNav" Classes="nav" Click="Settings_Click"><StackPanel Orientation="Horizontal" Spacing="13"><TextBlock Text="⚙" FontSize="17"/><TextBlock Text="Configurações" VerticalAlignment="Center"/></StackPanel></Button>
-          <Border Classes="panel" Padding="12"><StackPanel Spacing="7"><TextBlock Text="PRIVACIDADE EM PRIMEIRO LUGAR" FontSize="10" FontWeight="Bold" Foreground="#D7B1FF"/><TextBlock Text="Credenciais e sessões devem permanecer protegidas no dispositivo." FontSize="11" Classes="muted" TextWrapping="Wrap"/></StackPanel></Border>
-          <TextBlock Text="OmniDrive • Prévia da interface" Classes="muted" FontSize="10" Margin="4,4,0,0"/>
         </StackPanel>
       </Grid>
     </Border>
-    <Grid Grid.Column="1" RowDefinitions="*,Auto">
+    <Grid Grid.Column="1" RowDefinitions="*">
       <Grid Grid.Row="0" ColumnDefinitions="*,300">
         <Grid x:Name="DriveContent" Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
@@ -222,9 +220,6 @@
           <ScrollViewer x:Name="SettingsLocalDataPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18"><StackPanel Spacing="10"><TextBlock Text="Dados locais" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="As preferências do OmniDrive ficam no perfil local do Windows e permanecem disponíveis após baixar uma nova versão." Classes="muted" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="Local das preferências:" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="%LOCALAPPDATA%\OmniDrive\settings.json" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="A sessão do Telegram é armazenada separadamente e protegida por usuário do Windows." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel></Border></StackPanel></ScrollViewer>
         </Grid>
       </Grid>
-      <Border Grid.Row="1" Background="#191620" BorderBrush="#302A39" BorderThickness="0,1,0,0" Padding="20,9">
-        <Grid ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8"><Ellipse Width="7" Height="7" Fill="#E5A94D" VerticalAlignment="Center"/><TextBlock x:Name="StatusText" Text="Nenhum serviço conectado" Classes="muted" FontSize="11" VerticalAlignment="Center"/></StackPanel><TextBlock Grid.Column="1" Text="Fila de transferências: 0" Classes="muted" FontSize="11" VerticalAlignment="Center"/></Grid>
-      </Border>
     </Grid>
   </Grid>
 </Window>
