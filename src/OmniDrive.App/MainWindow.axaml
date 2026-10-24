@@ -38,7 +38,7 @@
         <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="24,22,16,16">
           <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="9">
             <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
-            <TextBox Grid.Column="1" Classes="search" Width="420" Watermark="Buscar por nome..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <TextBox x:Name="SearchBox" Grid.Column="1" Classes="search" Width="420" Watermark="Buscar por nome..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,8,0"/>
             <Button Grid.Column="2" Classes="ghost" Click="ToggleFilters_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="☷" FontSize="16"/><TextBlock Text="Filtros"/><TextBlock x:Name="FilterCount" Text="" Foreground="#D6A8FF"/></StackPanel></Button>
             <Border x:Name="FilterPanel" Grid.Row="1" Grid.ColumnSpan="3" Classes="panel" Padding="14" IsVisible="False">
               <StackPanel Spacing="12">
