@@ -100,11 +100,84 @@ public partial class MainWindow : Window
 
     private void Search_TextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (sender is TextBox { Text: { Length: > 0 } })
-            StatusText.Text = "A pesquisa será executada quando houver um serviço conectado.";
-        else
-            StatusText.Text = "Nenhum serviço conectado";
+        if (FilterCount is not null && FilterCount.Text.Length > 0)
+            return;
+
+        StatusText.Text = string.IsNullOrWhiteSpace(SearchBox.Text)
+            ? "Nenhum serviço conectado"
+            : "Pesquisa por nome preparada; conecte um serviço para pesquisar arquivos.";
     }
+
+    private void ToggleFilters_Click(object? sender, RoutedEventArgs e)
+    {
+        FilterPanel.IsVisible = !FilterPanel.IsVisible;
+    }
+
+    private void ApplyFilters_Click(object? sender, RoutedEventArgs e)
+    {
+        var activeRules = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            activeRules.Add($"{RuleMode(NameRuleMode)} nome");
+
+        if (!string.IsNullOrWhiteSpace(SizeMinFilter.Text) ||
+            !string.IsNullOrWhiteSpace(SizeMaxFilter.Text))
+            activeRules.Add($"{RuleMode(SizeRuleMode)} tamanho");
+
+        if (DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null)
+            activeRules.Add($"{RuleMode(DateRuleMode)} data");
+
+        if (!string.IsNullOrWhiteSpace(ExtensionFilter.Text))
+            activeRules.Add($"{RuleMode(ExtensionRuleMode)} extensão");
+
+        if (ServiceFilter.SelectedIndex > 0)
+            activeRules.Add($"{RuleMode(ServiceRuleMode)} serviço");
+
+        if (CredentialFilter.SelectedIndex > 0)
+            activeRules.Add($"{RuleMode(CredentialRuleMode)} credencial");
+
+        if (FavoritesFilter.SelectedIndex > 0)
+            activeRules.Add($"{RuleMode(FavoritesRuleMode)} favoritos");
+
+        if (TypeFilter.SelectedIndex > 0)
+            activeRules.Add($"{RuleMode(TypeRuleMode)} tipo");
+
+        FilterCount.Text = activeRules.Count == 0 ? "" : $"({activeRules.Count})";
+        FilterPanel.IsVisible = false;
+
+        StatusText.Text = activeRules.Count == 0
+            ? "Filtros limpos. Nenhum serviço conectado."
+            : $"Filtros configurados: {string.Join(", ", activeRules)}. Conecte um serviço para aplicá-los aos arquivos.";
+    }
+
+    private void ClearFilters_Click(object? sender, RoutedEventArgs e)
+    {
+        SearchBox.Text = "";
+        SizeMinFilter.Text = "";
+        SizeMaxFilter.Text = "";
+        DateFromFilter.SelectedDate = null;
+        DateToFilter.SelectedDate = null;
+        ExtensionFilter.Text = "";
+        ServiceFilter.SelectedIndex = 0;
+        CredentialFilter.SelectedIndex = 0;
+        FavoritesFilter.SelectedIndex = 0;
+        TypeFilter.SelectedIndex = 0;
+
+        NameRuleMode.SelectedIndex = 0;
+        SizeRuleMode.SelectedIndex = 0;
+        DateRuleMode.SelectedIndex = 0;
+        ExtensionRuleMode.SelectedIndex = 0;
+        ServiceRuleMode.SelectedIndex = 0;
+        CredentialRuleMode.SelectedIndex = 0;
+        FavoritesRuleMode.SelectedIndex = 0;
+        TypeRuleMode.SelectedIndex = 0;
+
+        FilterCount.Text = "";
+        StatusText.Text = "Filtros limpos. Nenhum serviço conectado.";
+    }
+
+    private static string RuleMode(ComboBox selector) =>
+        selector.SelectedIndex == 1 ? "Excluir" : "Incluir";
 
     private void ToggleDetails_Click(object? sender, RoutedEventArgs e)
     {
