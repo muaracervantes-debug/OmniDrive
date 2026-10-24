@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Collections.ObjectModel;
+using Avalonia.Input;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -20,6 +22,9 @@ public partial class MainWindow : Window
     private string? _telegramPendingKind;
     private readonly List<string> _connections = new();
     private readonly Dictionary<string, string> _uploadLimits = new();
+    private int _completedTransfers;
+    private TransferQueueItem? _selectedTransfer;
+    public ObservableCollection<TransferQueueItem> TransferQueue { get; } = new();
     private readonly string _settingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "OmniDrive",
@@ -28,6 +33,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        DataContext = this;
+        TransferItemsList.ItemsSource = TransferQueue;
+        UpdateTransferQueueDisplay();
         LoadSettings();
         LoadTelegramCredentials();
         RefreshConnectionControls();
@@ -95,6 +103,20 @@ public partial class MainWindow : Window
         DefaultDownloadFolder = this.FindControl<TextBox>(nameof(DefaultDownloadFolder)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DefaultDownloadFolder");
         SettingsStatus = this.FindControl<TextBlock>(nameof(SettingsStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsStatus");
         StatusText = this.FindControl<TextBlock>(nameof(StatusText)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StatusText");
+        TransferQueuePanel = this.FindControl<Border>(nameof(TransferQueuePanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueuePanel");
+        TransferItemsList = this.FindControl<ListBox>(nameof(TransferItemsList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferItemsList");
+        TransferQueueEmpty = this.FindControl<TextBlock>(nameof(TransferQueueEmpty)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueueEmpty");
+        TransferQueueCount = this.FindControl<TextBlock>(nameof(TransferQueueCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueueCount");
+        TransferDetailsOverlay = this.FindControl<Grid>(nameof(TransferDetailsOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailsOverlay");
+        TransferDetailService = this.FindControl<TextBlock>(nameof(TransferDetailService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailService");
+        TransferDetailName = this.FindControl<TextBlock>(nameof(TransferDetailName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailName");
+        TransferDetailPercent = this.FindControl<TextBlock>(nameof(TransferDetailPercent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailPercent");
+        TransferDetailSpeed = this.FindControl<TextBlock>(nameof(TransferDetailSpeed)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailSpeed");
+        TransferDetailProgress = this.FindControl<ProgressBar>(nameof(TransferDetailProgress)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailProgress");
+        TransferDetailElapsed = this.FindControl<TextBlock>(nameof(TransferDetailElapsed)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailElapsed");
+        TransferDetailSize = this.FindControl<TextBlock>(nameof(TransferDetailSize)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailSize");
+        TransferDetailCredential = this.FindControl<TextBlock>(nameof(TransferDetailCredential)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailCredential");
+        TransferDetailPart = this.FindControl<TextBlock>(nameof(TransferDetailPart)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailPart");
         TelegramApiId = this.FindControl<TextBox>(nameof(TelegramApiId)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiId");
         TelegramApiHash = this.FindControl<TextBox>(nameof(TelegramApiHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiHash");
         TelegramPhone = this.FindControl<TextBox>(nameof(TelegramPhone)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramPhone");
@@ -712,6 +734,94 @@ public partial class MainWindow : Window
         public int MaxDownloads { get; set; } = 4;
         public bool VerifyUploadHash { get; set; } = true;
         public bool VerifyDownloadHash { get; set; } = true;
+    }
+
+    private Border TransferQueuePanel = null!;
+    private ListBox TransferItemsList = null!;
+    private TextBlock TransferQueueEmpty = null!;
+    private TextBlock TransferQueueCount = null!;
+    private Grid TransferDetailsOverlay = null!;
+    private TextBlock TransferDetailService = null!;
+    private TextBlock TransferDetailName = null!;
+    private TextBlock TransferDetailPercent = null!;
+    private TextBlock TransferDetailSpeed = null!;
+    private ProgressBar TransferDetailProgress = null!;
+    private TextBlock TransferDetailElapsed = null!;
+    private TextBlock TransferDetailSize = null!;
+    private TextBlock TransferDetailCredential = null!;
+    private TextBlock TransferDetailPart = null!;
+
+    private void ToggleTransferQueue_Click(object? sender, RoutedEventArgs e)
+    {
+        TransferQueuePanel.IsVisible = !TransferQueuePanel.IsVisible;
+    }
+
+    private void UpdateTransferQueueDisplay()
+    {
+        if (TransferQueueCount is not null)
+            TransferQueueCount.Text = $"{_completedTransfers} / {_completedTransfers + TransferQueue.Count}";
+        if (TransferQueueEmpty is not null)
+            TransferQueueEmpty.IsVisible = TransferQueue.Count == 0;
+    }
+
+    private void RemoveTransfer_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: TransferQueueItem item })
+        {
+            // The transfer engine will attach its cancellation token here when implemented.
+            item.CancelRequested = true;
+            TransferQueue.Remove(item);
+            if (ReferenceEquals(_selectedTransfer, item))
+                TransferDetailsOverlay.IsVisible = false;
+            UpdateTransferQueueDisplay();
+        }
+    }
+
+    private void TransferItem_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (TransferItemsList.SelectedItem is not TransferQueueItem item)
+            return;
+
+        _selectedTransfer = item;
+        TransferDetailName.Text = item.FileName;
+        TransferDetailService.Text = $"Serviço: {item.Service}";
+        TransferDetailCredential.Text = $"Credencial: {item.Credential}";
+        TransferDetailPercent.Text = $"Progresso: {item.Percentage:0.##}%";
+        TransferDetailSpeed.Text = $"Velocidade: {item.Speed}";
+        TransferDetailProgress.Value = item.Percentage;
+        TransferDetailElapsed.Text = item.Elapsed;
+        TransferDetailSize.Text = item.Size;
+        TransferDetailPart.Text = item.PartDescription == "—" ? "Parte: arquivo não dividido" : $"Parte atual: {item.PartDescription}";
+        TransferDetailsOverlay.IsVisible = true;
+    }
+
+    private void TransferDetailsOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        TransferDetailsOverlay.IsVisible = false;
+        _selectedTransfer = null;
+    }
+
+    private void TransferDetailsCard_PointerPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
+
+    private void CloseTransferDetails_Click(object? sender, RoutedEventArgs e)
+    {
+        TransferDetailsOverlay.IsVisible = false;
+        _selectedTransfer = null;
+    }
+
+    public sealed class TransferQueueItem
+    {
+        public string Icon { get; set; } = "📄";
+        public string FileName { get; set; } = "";
+        public double Percentage { get; set; }
+        public string ProgressLabel => $"{Percentage:0.##}%";
+        public string PartDescription { get; set; } = "—";
+        public string Service { get; set; } = "—";
+        public string Credential { get; set; } = "—";
+        public string Speed { get; set; } = "—";
+        public string Elapsed { get; set; } = "—";
+        public string Size { get; set; } = "—";
+        public bool CancelRequested { get; set; }
     }
 
     private void ToggleDetails_Click(object? sender, RoutedEventArgs e)
