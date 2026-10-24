@@ -118,10 +118,41 @@
               <TextBlock Text="Gerencie conexões, transferências, integridade e dados locais." Classes="muted" FontSize="12"/>
             </StackPanel>
             <Border Classes="panel" Padding="18">
+              <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="1. Conectar ao Telegram" FontSize="17" FontWeight="SemiBold"/>
+                  <TextBlock Text="Use as credenciais da sua aplicação Telegram. Você pode obtê-las em my.telegram.org/apps. A sessão e as credenciais ficam salvas neste Windows para reutilização em versões futuras." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="API ID" FontSize="12"/>
+                    <TextBox x:Name="TelegramApiId" Watermark="Ex.: 123456"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="5">
+                    <TextBlock Text="API Hash" FontSize="12"/>
+                    <TextBox x:Name="TelegramApiHash" PasswordChar="●" Watermark="API Hash da aplicação"/>
+                  </StackPanel>
+                </Grid>
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Número de telefone com código do país" FontSize="12"/>
+                  <TextBox x:Name="TelegramPhone" Watermark="Ex.: +5511999999999"/>
+                </StackPanel>
+                <StackPanel Spacing="5" IsVisible="False" x:Name="TelegramLoginInputPanel">
+                  <TextBlock x:Name="TelegramLoginLabel" Text="Código de verificação" FontSize="12"/>
+                  <TextBox x:Name="TelegramLoginInput" Watermark="Digite a informação solicitada"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="TelegramConnectButton" Classes="action" Click="TelegramConnect_Click" Content="Conectar ao Telegram"/>
+                  <Button Classes="ghost" Click="TelegramForget_Click" Content="Apagar credenciais salvas"/>
+                </StackPanel>
+                <TextBlock x:Name="TelegramStatus" Text="Desconectado. Nenhuma credencial foi carregada." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <Border Classes="panel" Padding="18">
               <StackPanel Spacing="14">
-                <StackPanel Spacing="4"><TextBlock Text="1. Conectar serviços" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Adicione várias contas do mesmo serviço e atribua um nome para identificar cada conexão." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Conexões adicionais (cadastro local)" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Este cadastro organiza conexões futuras; a autenticação real do Telegram é feita no painel acima." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="180,*,Auto,Auto" ColumnSpacing="10">
-                  <ComboBox x:Name="NewConnectionService" SelectedIndex="0"><ComboBoxItem Content="Telegram"/><ComboBoxItem Content="Outro serviço compatível"/></ComboBox>
+                  <ComboBox x:Name="NewConnectionService" SelectedIndex="0"><ComboBoxItem Content="Outro serviço compatível"/></ComboBox>
                   <TextBox x:Name="NewConnectionName" Grid.Column="1" Watermark="Nome da conexão (ex.: Telegram pessoal)"/>
                   <Button Grid.Column="2" Classes="action" Click="AddConnection_Click" Content="＋ Adicionar"/>
                   <Button Grid.Column="3" Classes="ghost" Click="EditConnection_Click" Content="Editar selecionada"/>
