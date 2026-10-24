@@ -576,6 +576,7 @@ public partial class MainWindow : Window
                     return;
                 }
 
+                var resendRequested = _telegramResendRequested;
                 loginInfo = _telegramPendingKind switch
                 {
                     "phone_number" => "+" + new string((TelegramPhone.Text ?? "").Where(char.IsDigit).ToArray()),
@@ -584,7 +585,7 @@ public partial class MainWindow : Window
                 };
                 _telegramResendRequested = false;
 
-                if (string.IsNullOrWhiteSpace(loginInfo))
+                if (string.IsNullOrWhiteSpace(loginInfo) && !resendRequested)
                 {
                     TelegramStatus.Text = "Preencha a informação solicitada pelo Telegram para continuar.";
                     return;
