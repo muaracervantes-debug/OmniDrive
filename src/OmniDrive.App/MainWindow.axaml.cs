@@ -144,7 +144,7 @@ public partial class MainWindow : Window
         SettingsSecurityPage.IsVisible = section == "security";
         SettingsLocalDataPage.IsVisible = section == "local";
 
-        foreach (var item in this.GetVisualDescendants().OfType<Button>().Where(b => b.Click is not null))
+        foreach (var item in this.GetVisualDescendants().OfType<Button>())
         {
             if (item.Tag is string tag && new[] { "connect", "upload", "transfers", "integrity", "folder", "security", "local" }.Contains(tag))
             {
