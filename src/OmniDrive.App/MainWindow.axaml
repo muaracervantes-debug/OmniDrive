@@ -246,6 +246,7 @@
                   <StackPanel Spacing="5" IsVisible="False" x:Name="TelegramLoginInputPanel">
                     <TextBlock x:Name="TelegramLoginLabel" Text="Código de verificação" FontSize="12" Foreground="#F4F0FA"/>
                     <TextBox x:Name="TelegramLoginInput" Watermark="Digite a informação solicitada" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242"/>
+                    <Button x:Name="TelegramResendCodeButton" Classes="ghost" Click="TelegramResendCode_Click" Content="Não recebi o código — tentar outro método" HorizontalAlignment="Left" IsVisible="False"/>
                   </StackPanel>
                   <TextBlock x:Name="TelegramStatus" Text="Desconectado. Nenhuma credencial foi carregada." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
