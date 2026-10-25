@@ -203,6 +203,9 @@ public partial class MainWindow : Window
         DetailsPanel.IsVisible = false;
         ShowDetailsButton.IsVisible = false;
         SettingsContent.IsVisible = true;
+        // A fila é um controle flutuante global e deve continuar acessível em Configurações.
+        TransferQueueHost.IsVisible = true;
+        UpdateTransferQueuePosition();
         SettingsStatus.Text = "Configurações locais. Conexões ainda não autenticam com os provedores.";
         SetSelectedNavigation(sender);
     }
