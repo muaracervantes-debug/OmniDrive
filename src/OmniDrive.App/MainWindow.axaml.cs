@@ -254,6 +254,34 @@ public partial class MainWindow : Window
             var scanned = 0;
             var foldersFound = 0;
 
+            // Consultar diretamente o chat da pasta aberta. Não depender de ele aparecer
+            // novamente na lista de diálogos do Telegram para conseguir ler seus arquivos.
+            if (currentFolder is not null)
+            {
+                var folderHistory = await _telegramClient.Messages_GetHistory(currentFolder.Peer, limit: 100);
+                foreach (var message in folderHistory.Messages.OfType<Message>())
+                {
+                    if (message.media is not MessageMediaDocument mediaDocument || mediaDocument.document is not Document document)
+                        continue;
+
+                    var fileName = document.attributes?
+                        .OfType<DocumentAttributeFilename>()
+                        .Select(attribute => attribute.file_name)
+                        .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+                    if (string.IsNullOrWhiteSpace(fileName))
+                        fileName = $"Telegram_documento_{message.ID}";
+
+                    CloudFiles.Add(new TelegramFileItem(
+                        fileName,
+                        currentFolder.Name,
+                        FormatFileSize(document.size),
+                        message.date.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+                        document.size,
+                        message.ID,
+                        currentFolder.Peer));
+                }
+            }
+
             foreach (var dialog in dialogList)
             {
                 try
@@ -301,13 +329,15 @@ public partial class MainWindow : Window
                                 folderKey: peerKey));
                         }
 
-                        // Os documentos de uma pasta só aparecem ao entrar no chat correspondente.
-                        if (currentFolder is null || !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
-                            continue;
-                    }
-                    if (currentFolder is not null && !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
+                        // Ao navegar dentro de uma pasta, os arquivos já foram carregados
+                    // diretamente do chat atual acima. Aqui só descobrimos subpastas.
+                    if (currentFolder is not null)
+                    {
+                        scanned++;
                         continue;
-                    if (currentFolder is null && isFolder)
+                    }
+
+                    if (isFolder)
                         continue;
 
                     var history = await _telegramClient.Messages_GetHistory(inputPeer, limit: 100);
