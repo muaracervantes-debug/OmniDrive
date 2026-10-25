@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -328,8 +329,9 @@ public partial class MainWindow : Window
                                 isFolder: true,
                                 folderKey: peerKey));
                         }
+                    }
 
-                        // Ao navegar dentro de uma pasta, os arquivos já foram carregados
+                    // Ao navegar dentro de uma pasta, os arquivos já foram carregados
                     // diretamente do chat atual acima. Aqui só descobrimos subpastas.
                     if (currentFolder is not null)
                     {
@@ -371,7 +373,7 @@ public partial class MainWindow : Window
                 }
             }
 
-            var sorted = CloudFiles
+            var sorted = GroupSplitFiles(CloudFiles.ToList())
                 .OrderBy(file => file.IsFolder ? 0 : 1)
                 .ThenByDescending(file => file.MessageDate)
                 .ToList();
@@ -410,6 +412,98 @@ public partial class MainWindow : Window
             TelegramFilesStatus.Text = "Falha ao consultar os chats do Telegram.";
         }
     }
+
+    private static List<TelegramFileItem> GroupSplitFiles(IReadOnlyList<TelegramFileItem> files)
+    {
+        var result = new List<TelegramFileItem>();
+        var groups = new Dictionary<string, List<(TelegramFileItem File, SplitFileName Parsed)>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in files)
+        {
+            if (file.IsFolder || !TryParseSplitFileName(file.Name, out var parsed))
+            {
+                result.Add(file);
+                continue;
+            }
+
+            if (!groups.TryGetValue(parsed.Uuid, out var group))
+            {
+                group = new List<(TelegramFileItem File, SplitFileName Parsed)>();
+                groups[parsed.Uuid] = group;
+            }
+            group.Add((file, parsed));
+        }
+
+        foreach (var pair in groups)
+        {
+            var entries = pair.Value
+                .GroupBy(entry => entry.Parsed.PartNumber)
+                .Select(group => group.OrderByDescending(entry => entry.File.MessageDate).First())
+                .OrderBy(entry => entry.Parsed.PartNumber)
+                .ToList();
+            if (entries.Count == 0)
+                continue;
+
+            var expectedTotal = entries.Max(entry => entry.Parsed.TotalParts);
+            var actualNumbers = entries.Select(entry => entry.Parsed.PartNumber).ToHashSet();
+            var incomplete = entries.Any(entry => entry.Parsed.TotalParts != expectedTotal)
+                || actualNumbers.Count != expectedTotal
+                || Enumerable.Range(1, expectedTotal).Any(partNumber => !actualNumbers.Contains(partNumber));
+            var first = entries[0];
+            var displayName = first.Parsed.OriginalName;
+            var totalBytes = entries.Sum(entry => entry.File.SizeBytes);
+            var parts = entries.Select(entry => new TelegramFilePart(
+                entry.File.Name,
+                entry.File.Peer,
+                entry.File.MessageId,
+                entry.Parsed.PartNumber,
+                entry.Parsed.TotalParts,
+                entry.File.SizeBytes)).ToList();
+            var partsLabel = incomplete
+                ? $"{entries.Count}/{expectedTotal} partes · incompleto"
+                : $"{expectedTotal} partes";
+            var sourceChats = entries.Select(entry => entry.File.ChatName).Distinct(StringComparer.Ordinal).ToList();
+            var chatLabel = sourceChats.Count == 1 ? sourceChats[0] : $"Telegram · {sourceChats.Count} chats";
+
+            result.Add(new TelegramFileItem(
+                displayName,
+                chatLabel,
+                FormatFileSize(totalBytes),
+                entries.Max(entry => entry.File.MessageDate).ToString("dd/MM/yyyy HH:mm"),
+                totalBytes,
+                first.File.MessageId,
+                first.File.Peer,
+                parts: parts,
+                splitUuid: pair.Key,
+                expectedPartCount: expectedTotal,
+                isIncomplete: incomplete,
+                displayName: displayName,
+                partsLabel: partsLabel));
+        }
+
+        return result;
+    }
+
+    private static bool TryParseSplitFileName(string name, out SplitFileName parsed)
+    {
+        parsed = default!;
+        var match = Regex.Match(
+            name,
+            @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?<ext>\.[^.]*)?$",
+            RegexOptions.CultureInvariant);
+        if (!match.Success
+            || !Guid.TryParse(match.Groups["uuid"].Value, out var uuid)
+            || !int.TryParse(match.Groups["part"].Value, out var partNumber)
+            || !int.TryParse(match.Groups["total"].Value, out var totalParts)
+            || partNumber > totalParts)
+            return false;
+
+        var originalName = match.Groups["base"].Value + match.Groups["ext"].Value;
+        parsed = new SplitFileName(originalName, uuid.ToString(), partNumber, totalParts);
+        return true;
+    }
+
+    private sealed record SplitFileName(string OriginalName, string Uuid, int PartNumber, int TotalParts);
 
     private static string? GetTelegramPeerKey(object entity) => entity switch
     {
