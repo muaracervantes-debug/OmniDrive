@@ -340,6 +340,25 @@ public partial class MainWindow : Window
         return $"{size:0.##} {units[unit]}";
     }
 
+    private void CloudFileRow_PointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is not Border row)
+            return;
+
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
+            button.IsVisible = true;
+    }
+
+    private void CloudFileRow_PointerExited(object? sender, PointerEventArgs e)
+    {
+        if (sender is not Border row)
+            return;
+
+        var isSelected = ReferenceEquals(CloudFilesList.SelectedItem, row.DataContext);
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
+            button.IsVisible = isSelected;
+    }
+
     private void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
     {
         if (CloudFilesList.SelectedItem is not TelegramFileItem file)
