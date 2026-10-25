@@ -605,7 +605,7 @@ public partial class MainWindow : Window
 
     private async void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: TelegramFileItem file })
+        if (sender is not Button { Tag: TelegramFileItem file } || file.IsFolder)
             return;
 
         if (_telegramClient is null)
@@ -614,32 +614,68 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (file.IsSplitFile && file.IsIncomplete)
+        {
+            TelegramFilesStatus.Text = $"Não é possível reconstruir “{file.DisplayName}”: conjunto incompleto ({file.PartsLabel}).";
+            return;
+        }
+
         try
         {
             var saveFile = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Salvar arquivo do Telegram",
-                SuggestedFileName = file.Name
+                Title = file.IsSplitFile ? "Reconstruir arquivo dividido" : "Salvar arquivo do Telegram",
+                SuggestedFileName = file.DisplayName
             });
             if (saveFile is null)
                 return;
 
-            TelegramFilesStatus.Text = $"Preparando o download de {file.Name}...";
-            var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
-            var message = history.Messages.OfType<Message>().FirstOrDefault(m => m.ID == file.MessageId);
-            if (message?.media is not MessageMediaDocument { document: Document document })
+            TelegramFilesStatus.Text = file.IsSplitFile
+                ? $"Localizando as {file.ExpectedPartCount} partes de {file.DisplayName}..."
+                : $"Preparando o download de {file.Name}...";
+
+            var documents = new List<Document>();
+            if (file.IsSplitFile)
             {
-                TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
-                return;
+                foreach (var part in file.Parts.OrderBy(part => part.PartNumber))
+                {
+                    var history = await _telegramClient.Messages_GetHistory(part.Peer, limit: 100);
+                    var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == part.MessageId);
+                    if (message?.media is not MessageMediaDocument { document: Document document })
+                    {
+                        TelegramFilesStatus.Text = $"A parte {part.PartNumber}/{part.TotalParts} de “{file.DisplayName}” não foi encontrada no Telegram. O download foi cancelado.";
+                        return;
+                    }
+                    documents.Add(document);
+                }
+            }
+            else
+            {
+                var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
+                var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == file.MessageId);
+                if (message?.media is not MessageMediaDocument { document: Document document })
+                {
+                    TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
+                    return;
+                }
+                documents.Add(document);
             }
 
             await using var output = await saveFile.OpenWriteAsync();
-            await _telegramClient.DownloadFileAsync(document, output);
-            TelegramFilesStatus.Text = $"Download concluído: {file.Name}";
+            for (var index = 0; index < documents.Count; index++)
+            {
+                TelegramFilesStatus.Text = file.IsSplitFile
+                    ? $"Baixando parte {index + 1}/{documents.Count} de {file.DisplayName}..."
+                    : $"Baixando {file.DisplayName}...";
+                await _telegramClient.DownloadFileAsync(documents[index], output);
+            }
+            TelegramFilesStatus.Text = file.IsSplitFile
+                ? $"Arquivo reconstruído com {documents.Count} partes: {file.DisplayName}"
+                : $"Download concluído: {file.DisplayName}";
         }
         catch (Exception ex)
         {
-            TelegramFilesStatus.Text = $"Não foi possível baixar {file.Name}: {ex.Message}";
+            TelegramFilesStatus.Text = $"Não foi possível baixar {file.DisplayName}: {ex.Message}";
         }
     }
 
