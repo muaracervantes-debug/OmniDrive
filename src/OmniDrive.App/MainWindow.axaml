@@ -189,7 +189,7 @@
           </ScrollViewer>
           <ScrollViewer x:Name="SettingsUploadPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="14">
-                <StackPanel Spacing="4"><TextBlock Text="2. Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="220,180,Auto" ColumnSpacing="10">
                   <ComboBox x:Name="UploadLimitConnection" Grid.Column="0" SelectionChanged="UploadLimitConnection_SelectionChanged"/>
                   <TextBox x:Name="UploadLimitValue" Grid.Column="1" Watermark="Limite em MB" Text="0"/>
@@ -200,7 +200,7 @@
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsTransfersPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="14">
-                <StackPanel Spacing="4"><TextBlock Text="3. Transferências simultâneas" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="O excedente permanece na fila até que uma transferência ativa termine." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Transferências simultâneas" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="O excedente permanece na fila até que uma transferência ativa termine." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="220,180,220,180" ColumnSpacing="10">
                   <TextBlock Text="Máximo de uploads simultâneos" VerticalAlignment="Center" FontSize="12"/>
                   <TextBox x:Name="MaxUploadsValue" Grid.Column="1" Text="4" Watermark="Padrão: 4"/>
@@ -212,7 +212,7 @@
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsIntegrityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
-                <StackPanel Spacing="4"><TextBlock Text="4. Integridade" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Cada verificação pode ser ativada ou desativada independentemente." Classes="muted" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Integridade" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Cada verificação pode ser ativada ou desativada independentemente." Classes="muted" FontSize="12"/></StackPanel>
                 <CheckBox x:Name="VerifyUploadHash" Content="Criar hash durante o upload" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
                 <TextBlock x:Name="UploadIntegrityWarning" Text="Desativar esta opção significa que a integridade do upload não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
                 <CheckBox x:Name="VerifyDownloadHash" Content="Verificar hash durante o download" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
@@ -222,7 +222,7 @@
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsFolderPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
-                <StackPanel Spacing="4"><TextBlock Text="5. Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Recurso previsto para uma versão futura. Até lá, o destino deverá ser escolhido em cada download." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Recurso previsto para uma versão futura. Até lá, o destino deverá ser escolhido em cada download." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                   <TextBox x:Name="DefaultDownloadFolder" IsReadOnly="True" Watermark="Ainda não configurável nesta versão"/>
                   <Button Grid.Column="1" Classes="ghost" Content="Selecionar pasta" IsEnabled="False"/>
@@ -231,7 +231,7 @@
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsSecurityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="10">
-                <TextBlock Text="6. Segurança e dados locais" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Segurança" FontSize="17" FontWeight="SemiBold"/>
                 <TextBlock Text="As preferências e os limites configurados serão mantidos localmente. Os dados locais não devem ser a única fonte para identificar partes de arquivos nem para recuperar hashes." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
                 <TextBlock Text="As credenciais ainda não são coletadas nesta tela. A proteção de tokens e sessões deverá ser implementada junto à autenticação de cada provedor, usando armazenamento seguro do sistema operacional." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
               </StackPanel>
@@ -282,7 +282,7 @@
   </Grid>
 </Grid>
   <TextBlock x:Name="StatusText" IsVisible="False" />
-  <StackPanel Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
+  <StackPanel x:Name="TransferQueueHost" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
     <Border x:Name="TransferQueuePanel" Classes="panel" Width="440" MaxHeight="430" Padding="14" IsVisible="False">
       <StackPanel Spacing="12">
         <Grid ColumnDefinitions="*,Auto">
@@ -314,6 +314,7 @@
       <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="⇅" FontSize="17"/><TextBlock Text="Fila de transferência"/><TextBlock x:Name="TransferQueueCount" Text="0 / 0" Foreground="#F3DFFF" FontWeight="Bold"/></StackPanel>
     </Button>
   </StackPanel>
+  <Button x:Name="ShowDetailsButton" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,0,0" Classes="ghost" Content="‹ Detalhes" Click="ToggleDetails_Click" ToolTip.Tip="Abrir painel de detalhes" IsVisible="False" ZIndex="5"/>
   <Grid x:Name="TransferDetailsOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990A0810" ZIndex="20" PointerPressed="TransferDetailsOverlay_PointerPressed">
     <Border Classes="panel" Width="520" MaxHeight="650" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="TransferDetailsCard_PointerPressed">
       <StackPanel Spacing="14">
