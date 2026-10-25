@@ -445,8 +445,11 @@ public partial class MainWindow : Window
         if (sender is not Border row)
             return;
 
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem item))
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
+        {
+            var item = (TelegramFileItem)button.Tag!;
             button.IsVisible = button.Content?.ToString() != "⇩" || !item.IsFolder;
+        }
     }
 
     private void CloudFileRow_PointerExited(object? sender, PointerEventArgs e)
@@ -455,8 +458,11 @@ public partial class MainWindow : Window
             return;
 
         var isSelected = ReferenceEquals(CloudFilesList.SelectedItem, row.DataContext);
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem item))
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
+        {
+            var item = (TelegramFileItem)button.Tag!;
             button.IsVisible = isSelected && (button.Content?.ToString() != "⇩" || !item.IsFolder);
+        }
     }
 
     private async void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
