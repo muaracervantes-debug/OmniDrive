@@ -20,6 +20,7 @@ namespace OmniDrive.App;
 public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
+    private readonly List<string> _folderPath = new();
     private Client? _telegramClient;
     private string? _telegramPendingKind;
     private bool _telegramResendRequested;
@@ -84,8 +85,9 @@ public partial class MainWindow : Window
         FavoritesRuleMode = this.FindControl<ComboBox>(nameof(FavoritesRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesRuleMode");
         TypeFilter = this.FindControl<ComboBox>(nameof(TypeFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeFilter");
         TypeRuleMode = this.FindControl<ComboBox>(nameof(TypeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeRuleMode");
-        BackButton = this.FindControl<Button>(nameof(BackButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BackButton");
-        BreadcrumbCurrent = this.FindControl<TextBlock>(nameof(BreadcrumbCurrent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbCurrent");
+        BreadcrumbPrevious = this.FindControl<Button>(nameof(BreadcrumbPrevious)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbPrevious");
+        BreadcrumbSeparator = this.FindControl<TextBlock>(nameof(BreadcrumbSeparator)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbSeparator");
+        BreadcrumbCurrent = this.FindControl<Button>(nameof(BreadcrumbCurrent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbCurrent");
         SelectionCount = this.FindControl<TextBlock>(nameof(SelectionCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectionCount");
         SelectAllCheckBox = this.FindControl<CheckBox>(nameof(SelectAllCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectAllCheckBox");
         EmptyFilesState = this.FindControl<Grid>(nameof(EmptyFilesState)) ?? throw new InvalidOperationException("Controle XAML não encontrado: EmptyFilesState");
@@ -148,7 +150,7 @@ public partial class MainWindow : Window
         ShowDriveView();
         AreaTitle.Text = "Visão geral";
         StatusText.Text = "Nenhum serviço conectado";
-        BreadcrumbCurrent.Text = "Visão geral";
+        SetBreadcrumbRoot("Visão geral");
         SetSelectedNavigation(sender);
     }
 
@@ -157,7 +159,7 @@ public partial class MainWindow : Window
         ShowDriveView();
         AreaTitle.Text = "Drive na nuvem";
         StatusText.Text = "Aguardando conexão com um serviço";
-        BreadcrumbCurrent.Text = "Raiz";
+        SetBreadcrumbRoot("Drive na nuvem");
         SetSelectedNavigation(sender);
     }
 
@@ -528,9 +530,53 @@ public partial class MainWindow : Window
 
     private void Back_Click(object? sender, RoutedEventArgs e)
     {
-        BreadcrumbCurrent.Text = "Raiz";
-        BackButton.IsEnabled = false;
-        StatusText.Text = "Você já está na raiz. Nenhum serviço conectado.";
+        NavigateToParentFolder();
+    }
+
+    private void SetBreadcrumbRoot(string rootName)
+    {
+        _folderPath.Clear();
+        BreadcrumbCurrent.Content = rootName;
+        BreadcrumbPrevious.IsVisible = false;
+        BreadcrumbSeparator.IsVisible = false;
+    }
+
+    private void BreadcrumbCurrent_Click(object? sender, RoutedEventArgs e)
+    {
+        // The current breadcrumb represents the active folder; clicking it keeps the current view.
+        if (_folderPath.Count == 0)
+            StatusText.Text = $"Você está em {BreadcrumbCurrent.Content}.";
+    }
+
+    private void BreadcrumbPrevious_Click(object? sender, RoutedEventArgs e) => NavigateToParentFolder();
+
+    private void NavigateToParentFolder()
+    {
+        if (_folderPath.Count <= 1)
+        {
+            SetBreadcrumbRoot("Drive na nuvem");
+            StatusText.Text = "Você voltou para a raiz do Drive na nuvem.";
+            return;
+        }
+
+        _folderPath.RemoveAt(_folderPath.Count - 1);
+        BreadcrumbCurrent.Content = _folderPath[^1];
+        BreadcrumbPrevious.Content = _folderPath.Count > 1 ? _folderPath[^2] : "";
+        BreadcrumbPrevious.IsVisible = _folderPath.Count > 1;
+        BreadcrumbSeparator.IsVisible = _folderPath.Count > 1;
+        StatusText.Text = $"Pasta atual: {_folderPath[^1]}";
+    }
+
+    private void NavigateToFolder(string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+            return;
+
+        _folderPath.Add(folderName);
+        BreadcrumbPrevious.Content = _folderPath.Count > 1 ? _folderPath[^2] : "";
+        BreadcrumbPrevious.IsVisible = _folderPath.Count > 1;
+        BreadcrumbSeparator.IsVisible = _folderPath.Count > 1;
+        BreadcrumbCurrent.Content = _folderPath[^1];
     }
 
     private void Search_TextChanged(object? sender, TextChangedEventArgs e)
