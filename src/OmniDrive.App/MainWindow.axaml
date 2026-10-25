@@ -61,7 +61,7 @@
                 <Button x:Name="BreadcrumbCurrent" Classes="ghost" Padding="8,7" Content="Drive na nuvem" Click="BreadcrumbCurrent_Click" ToolTip.Tip="Pasta atual"/>
                 <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Content="↻ Atualizar arquivos"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button></StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Height="40" Content="↻ Atualizar"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center" Height="40" Padding="15,8" Content="Novo"/></StackPanel>
             </Grid>
           </Grid>
           <Border Grid.Row="1" Classes="panel" Padding="0" VerticalAlignment="Stretch">
@@ -288,7 +288,7 @@
   </Grid>
 </Grid>
   <TextBlock x:Name="StatusText" IsVisible="False" />
-  <StackPanel x:Name="TransferQueueHost" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="10">
+  <StackPanel x:Name="TransferQueueHost" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,18" Spacing="8" ZIndex="20">
     <Border x:Name="TransferQueuePanel" Classes="panel" Width="440" MaxHeight="430" Padding="14" IsVisible="False">
       <StackPanel Spacing="12">
         <Grid ColumnDefinitions="*,Auto">
