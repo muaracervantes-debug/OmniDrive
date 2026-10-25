@@ -87,7 +87,7 @@
                   <ListBox Grid.Row="1" x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="local:TelegramFileItem">
-                        <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1" Background="Transparent">
+                        <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1" Background="Transparent" PointerEntered="CloudFileRow_PointerEntered" PointerExited="CloudFileRow_PointerExited">
                           <Grid ColumnDefinitions="38,*,110,130,Auto" ColumnSpacing="10">
                             <Border Width="34" Height="34" CornerRadius="9" Background="#332641" VerticalAlignment="Center"><TextBlock Text="▤" FontSize="17" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                             <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
@@ -97,8 +97,8 @@
                             <TextBlock Grid.Column="2" Text="{Binding SizeLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="{Binding DateLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                              <Button Classes="ghost" Padding="8,5" Content="⇩" Tag="{Binding}" Click="DownloadTelegramFile_Click" ToolTip.Tip="Baixar arquivo"/>
-                              <Button Classes="ghost" Padding="8,5" Content="⋮" Tag="{Binding}" Click="TelegramFileOptions_Click" ToolTip.Tip="Mais opções"/>
+                              <Button Classes="ghost" Padding="8,5" Content="⇩" Tag="{Binding}" Click="DownloadTelegramFile_Click" ToolTip.Tip="Baixar arquivo" IsVisible="False"/>
+                              <Button Classes="ghost" Padding="8,5" Content="⋮" Tag="{Binding}" Click="TelegramFileOptions_Click" ToolTip.Tip="Mais opções" IsVisible="False"/>
                             </StackPanel>
                           </Grid>
                         </Border>
