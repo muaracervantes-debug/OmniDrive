@@ -90,6 +90,8 @@ public partial class MainWindow : Window
         FilesEmptyTitle = this.FindControl<TextBlock>(nameof(FilesEmptyTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyTitle");
         FilesEmptyDescription = this.FindControl<TextBlock>(nameof(FilesEmptyDescription)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyDescription");
         DetailsPanel = this.FindControl<Border>(nameof(DetailsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DetailsPanel");
+        ShowDetailsButton = this.FindControl<Button>(nameof(ShowDetailsButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ShowDetailsButton");
+        TransferQueueHost = this.FindControl<StackPanel>(nameof(TransferQueueHost)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueueHost");
         SettingsContent = this.FindControl<Grid>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
         SettingsConnectPage = this.FindControl<ScrollViewer>(nameof(SettingsConnectPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsConnectPage");
         SettingsUploadPage = this.FindControl<ScrollViewer>(nameof(SettingsUploadPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsUploadPage");
@@ -191,6 +193,7 @@ public partial class MainWindow : Window
     {
         DriveContent.IsVisible = false;
         DetailsPanel.IsVisible = false;
+        ShowDetailsButton.IsVisible = false;
         SettingsContent.IsVisible = true;
         SettingsStatus.Text = "Configurações locais. Conexões ainda não autenticam com os provedores.";
         SetSelectedNavigation(sender);
@@ -201,6 +204,8 @@ public partial class MainWindow : Window
         SettingsContent.IsVisible = false;
         DriveContent.IsVisible = true;
         DetailsPanel.IsVisible = _detailsVisible;
+        ShowDetailsButton.IsVisible = !_detailsVisible;
+        UpdateTransferQueuePosition();
     }
 
     private void SetSelectedNavigation(object? sender)
@@ -996,9 +1001,18 @@ public partial class MainWindow : Window
 
         _detailsVisible = !_detailsVisible;
         DetailsPanel.IsVisible = _detailsVisible;
+        ShowDetailsButton.IsVisible = !_detailsVisible && DriveContent.IsVisible;
         parentGrid.ColumnDefinitions[1].Width = _detailsVisible
             ? new GridLength(300)
             : new GridLength(0);
+        UpdateTransferQueuePosition();
+    }
+
+    private void UpdateTransferQueuePosition()
+    {
+        TransferQueueHost.Margin = _detailsVisible && DriveContent.IsVisible
+            ? new Thickness(0, 0, 322, 18)
+            : new Thickness(0, 0, 22, 18);
     }
 
     private sealed class RelayUiCommand(System.Action action) : System.Windows.Input.ICommand
