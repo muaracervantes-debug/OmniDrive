@@ -746,41 +746,9 @@ public partial class MainWindow : Window
         menu.Open(CloudFilesList);
     }
 
-    private async void DownloadTelegramFileForItem(TelegramFileItem file)
+    private void DownloadTelegramFileForItem(TelegramFileItem file)
     {
-        if (_telegramClient is null)
-        {
-            TelegramFilesStatus.Text = "Conecte o Telegram antes de baixar arquivos.";
-            return;
-        }
-
-        try
-        {
-            var saveFile = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Salvar arquivo do Telegram",
-                SuggestedFileName = file.Name
-            });
-            if (saveFile is null)
-                return;
-
-            TelegramFilesStatus.Text = $"Preparando o download de {file.Name}...";
-            var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
-            var message = history.Messages.OfType<Message>().FirstOrDefault(m => m.ID == file.MessageId);
-            if (message?.media is not MessageMediaDocument { document: Document document })
-            {
-                TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
-                return;
-            }
-
-            await using var output = await saveFile.OpenWriteAsync();
-            await _telegramClient.DownloadFileAsync(document, output);
-            TelegramFilesStatus.Text = $"Download concluído: {file.Name}";
-        }
-        catch (Exception ex)
-        {
-            TelegramFilesStatus.Text = $"Não foi possível baixar {file.Name}: {ex.Message}";
-        }
+        DownloadTelegramFile_Click(new Button { Tag = file }, new RoutedEventArgs());
     }
 
     private void New_Click(object? sender, RoutedEventArgs e)
