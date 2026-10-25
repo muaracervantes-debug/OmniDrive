@@ -20,7 +20,9 @@ namespace OmniDrive.App;
 public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
-    private readonly List<string> _folderPath = new();
+    private readonly List<TelegramFolderLocation> _folderPath = new();
+    private readonly Dictionary<string, string?> _folderParents = new(StringComparer.Ordinal);
+    private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
     private string? _telegramPendingKind;
     private bool _telegramResendRequested;
@@ -47,6 +49,7 @@ public partial class MainWindow : Window
         UpdateTransferQueueDisplay();
         UpdateTransferQueuePosition();
         LoadSettings();
+        LoadTelegramFolderMap();
         LoadTelegramCredentials();
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
@@ -236,9 +239,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        TelegramFilesStatus.Text = "Consultando conversas e documentos do Telegram...";
+        TelegramFilesStatus.Text = "Detectando pastas do OmniDrive e consultando documentos do Telegram...";
         FilesEmptyTitle.Text = "Carregando arquivos…";
-        FilesEmptyDescription.Text = "Estamos verificando as conversas disponíveis na sua conta.";
+        FilesEmptyDescription.Text = "Estamos verificando os chats e as pastas identificadas pelo OmniDrive.";
         EmptyFilesState.IsVisible = true;
         CloudFilesContainer.IsVisible = false;
         CloudFiles.Clear();
@@ -246,16 +249,26 @@ public partial class MainWindow : Window
         try
         {
             var dialogs = await _telegramClient.Messages_GetAllDialogs();
-            var dialogList = dialogs.dialogs.Take(50).ToList();
+            var dialogList = dialogs.dialogs.ToList();
+            var currentFolder = _folderPath.LastOrDefault();
             var scanned = 0;
+            var foldersFound = 0;
 
             foreach (var dialog in dialogList)
             {
                 try
                 {
-                    var peer = dialog.Peer;
                     var entity = dialogs.UserOrChat(dialog);
-                    var chatName = entity?.ToString() ?? "Conversa do Telegram";
+                    if (entity is null)
+                        continue;
+
+                    var chatName = entity switch
+                    {
+                        TL.Chat chat => chat.title,
+                        Channel channel => channel.title,
+                        User user => user.ToString(),
+                        _ => entity.ToString() ?? "Conversa do Telegram"
+                    };
                     InputPeer? inputPeer = entity switch
                     {
                         User user => new InputPeerUser(user.id, user.access_hash),
@@ -263,11 +276,58 @@ public partial class MainWindow : Window
                         Channel channel => new InputPeerChannel(channel.id, channel.access_hash),
                         _ => null
                     };
-                    if (inputPeer is null)
+                    var peerKey = GetTelegramPeerKey(entity);
+                    if (inputPeer is null || peerKey is null)
+                        continue;
+
+                    var isFolder = entity is TL.Chat or Channel
+                        && chatName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal);
+                    if (isFolder)
+                    {
+                        foldersFound++;
+                        var folderName = chatName[..^TelegramFolderMarker.Length];
+                        _folderParents.TryGetValue(peerKey, out var parentKey);
+                        if (string.Equals(parentKey, currentFolder?.Key, StringComparison.Ordinal))
+                        {
+                            CloudFiles.Add(new TelegramFileItem(
+                                folderName,
+                                "Pasta do Telegram · " + chatName,
+                                "—",
+                                "—",
+                                0,
+                                0,
+                                inputPeer,
+                                isFolder: true,
+                                folderKey: peerKey));
+                        }
+
+                        // Os documentos de uma pasta só aparecem ao entrar no chat correspondente.
+                        if (currentFolder is null || !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
+                            continue;
+                    }
+                    else if (currentFolder is not null || entity is User)
+                    {
+                        // Na raiz, conversas privadas comuns não são destinos de pasta; dentro de uma pasta,
+                        // somente o chat selecionado deve ser listado.
+                        if (currentFolder is not null || entity is User)
+                        {
+                            if (currentFolder is null)
+                                continue;
+                            if (!string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
+                                continue;
+                        }
+                    }
+                    else if (currentFolder is null && entity is TL.Chat or Channel)
+                    {
+                        // Chats normais permanecem visíveis na raiz como origem dos documentos.
+                    }
+
+                    if (currentFolder is not null && !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
+                        continue;
+                    if (currentFolder is null && isFolder)
                         continue;
 
                     var history = await _telegramClient.Messages_GetHistory(inputPeer, limit: 100);
-
                     foreach (var message in history.Messages.OfType<Message>())
                     {
                         if (message.media is not MessageMediaDocument mediaDocument || mediaDocument.document is not Document document)
@@ -277,7 +337,6 @@ public partial class MainWindow : Window
                             .OfType<DocumentAttributeFilename>()
                             .Select(attribute => attribute.file_name)
                             .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
-
                         if (string.IsNullOrWhiteSpace(fileName))
                             fileName = $"Telegram_documento_{message.ID}";
 
@@ -295,37 +354,93 @@ public partial class MainWindow : Window
                 }
                 catch
                 {
-                    // Alguns diálogos podem não permitir a leitura do histórico; os demais continuam sendo verificados.
+                    // Um diálogo inacessível não deve impedir a detecção dos demais chats e pastas.
                 }
             }
 
-            var sorted = CloudFiles.OrderByDescending(file => file.MessageDate).ToList();
+            var sorted = CloudFiles
+                .OrderBy(file => file.IsFolder ? 0 : 1)
+                .ThenByDescending(file => file.MessageDate)
+                .ToList();
             CloudFiles.Clear();
             foreach (var file in sorted)
                 CloudFiles.Add(file);
 
             if (CloudFiles.Count == 0)
             {
-                FilesEmptyTitle.Text = "Nenhum documento encontrado";
-                FilesEmptyDescription.Text = $"Foram verificadas {scanned} conversas e até 100 mensagens recentes por conversa. Tente atualizar novamente ou confira se há documentos nessas conversas.";
+                FilesEmptyTitle.Text = currentFolder is null ? "Nenhum arquivo ou pasta encontrado" : "Esta pasta está vazia";
+                FilesEmptyDescription.Text = currentFolder is null
+                    ? $"Foram identificadas {foldersFound} pasta(s) do OmniDrive. Para criar uma, use Novo → Criar pasta."
+                    : "Não há documentos ou subpastas nesta pasta. Você pode criar uma subpasta pelo menu Novo.";
                 EmptyFilesState.IsVisible = true;
                 CloudFilesContainer.IsVisible = false;
-                TelegramFilesStatus.Text = "Nenhum documento encontrado nas mensagens recentes.";
+                TelegramFilesStatus.Text = currentFolder is null
+                    ? $"Nenhum item encontrado. Pastas do OmniDrive detectadas: {foldersFound}."
+                    : $"Pasta atual: {currentFolder.Name}. Nenhum item encontrado.";
             }
             else
             {
                 EmptyFilesState.IsVisible = false;
                 CloudFilesContainer.IsVisible = true;
-                TelegramFilesStatus.Text = $"{CloudFiles.Count} documento(s) encontrado(s) em {scanned} conversa(s). Mostrando até 100 mensagens recentes por conversa.";
+                TelegramFilesStatus.Text = currentFolder is null
+                    ? $"{CloudFiles.Count} item(ns) na raiz · {foldersFound} chat(s) identificado(s) como pasta(s) do OmniDrive."
+                    : $"{CloudFiles.Count} item(ns) em {currentFolder.Name}.";
             }
+            UpdateBreadcrumb();
         }
         catch (Exception ex)
         {
-            FilesEmptyTitle.Text = "Não foi possível carregar os arquivos";
+            FilesEmptyTitle.Text = "Não foi possível carregar arquivos e pastas";
             FilesEmptyDescription.Text = ex.Message;
             EmptyFilesState.IsVisible = true;
             CloudFilesContainer.IsVisible = false;
-            TelegramFilesStatus.Text = "Falha ao consultar o Telegram.";
+            TelegramFilesStatus.Text = "Falha ao consultar os chats do Telegram.";
+        }
+    }
+
+    private static string? GetTelegramPeerKey(object entity) => entity switch
+    {
+        TL.Chat chat => $"chat:{chat.id}",
+        Channel channel => $"channel:{channel.id}",
+        User user => $"user:{user.id}",
+        _ => null
+    };
+
+    private void LoadTelegramFolderMap()
+    {
+        try
+        {
+            var path = TelegramFolderMapPath;
+            if (File.Exists(path))
+            {
+                var saved = JsonSerializer.Deserialize<Dictionary<string, string?>>(File.ReadAllText(path));
+                if (saved is not null)
+                    foreach (var pair in saved)
+                        _folderParents[pair.Key] = pair.Value;
+            }
+        }
+        catch
+        {
+            // A metadata local corrompida não deve impedir a abertura do aplicativo.
+        }
+    }
+
+    private string TelegramFolderMapPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "OmniDrive",
+        "telegram-folders.json");
+
+    private void SaveTelegramFolderMap()
+    {
+        try
+        {
+            var path = TelegramFolderMapPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(_folderParents, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"A pasta foi criada, mas não foi possível salvar sua organização local: {ex.Message}";
         }
     }
 
