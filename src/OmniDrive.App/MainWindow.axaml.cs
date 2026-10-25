@@ -243,8 +243,19 @@ public partial class MainWindow : Window
                 try
                 {
                     var peer = dialog.Peer;
-                    var chatName = dialogs.UserOrChat(dialog)?.ToString() ?? "Conversa do Telegram";
-                    var history = await _telegramClient.Messages_GetHistory(peer, limit: 100);
+                    var entity = dialogs.UserOrChat(dialog);
+                    var chatName = entity?.ToString() ?? "Conversa do Telegram";
+                    InputPeer? inputPeer = entity switch
+                    {
+                        User user => new InputPeerUser(user.id, user.access_hash),
+                        TL.Chat chat => new InputPeerChat(chat.id),
+                        Channel channel => new InputPeerChannel(channel.id, channel.access_hash),
+                        _ => null
+                    };
+                    if (inputPeer is null)
+                        continue;
+
+                    var history = await _telegramClient.Messages_GetHistory(inputPeer, limit: 100);
 
                     foreach (var message in history.Messages.OfType<Message>())
                     {
@@ -267,7 +278,7 @@ public partial class MainWindow : Window
                             date.ToString("dd/MM/yyyy HH:mm"),
                             document.size,
                             message.ID,
-                            peer));
+                            inputPeer));
                     }
                     scanned++;
                 }
