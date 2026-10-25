@@ -489,7 +489,7 @@ public partial class MainWindow : Window
         parsed = default!;
         var match = Regex.Match(
             name,
-            @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?<ext>\.[^.]*)?$",
+            @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?<ext>\..*)?$",
             RegexOptions.CultureInvariant);
         if (!match.Success
             || !Guid.TryParse(match.Groups["uuid"].Value, out var uuid)
