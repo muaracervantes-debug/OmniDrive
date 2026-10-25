@@ -317,7 +317,7 @@ public partial class MainWindow : Window
                                 continue;
                         }
                     }
-                    else if (currentFolder is null && entity is TL.Chat or Channel)
+                    else if (currentFolder is null && (entity is TL.Chat or Channel))
                     {
                         // Chats normais permanecem visíveis na raiz como origem dos documentos.
                     }
@@ -621,7 +621,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new MenuItem
         {
             Header = "Criar pasta",
-            Command = new RelayUiCommand(() => ShowProviderRequired("criar uma pasta"))
+            Command = new RelayUiCommand(() => _ = CreateTelegramFolderAsync())
         });
         menu.Items.Add(new MenuItem
         {
@@ -643,56 +643,162 @@ public partial class MainWindow : Window
     private void ShowProviderRequired(string operation) =>
         StatusText.Text = $"Para {operation}, conecte primeiro um serviço de armazenamento.";
 
-    private void Back_Click(object? sender, RoutedEventArgs e)
-    {
-        NavigateToParentFolder();
-    }
-
     private void SetBreadcrumbRoot(string rootName)
     {
         _folderPath.Clear();
         BreadcrumbCurrent.Content = rootName;
-        BreadcrumbPrevious.IsVisible = false;
-        BreadcrumbSeparator.IsVisible = false;
+        UpdateBreadcrumb();
     }
 
     private void BreadcrumbCurrent_Click(object? sender, RoutedEventArgs e)
     {
-        // The current breadcrumb represents the active folder; clicking it keeps the current view.
         if (_folderPath.Count == 0)
             StatusText.Text = $"Você está em {BreadcrumbCurrent.Content}.";
     }
 
-    private void BreadcrumbPrevious_Click(object? sender, RoutedEventArgs e) => NavigateToParentFolder();
-
-    private void NavigateToParentFolder()
+    private async void BreadcrumbPrevious_Click(object? sender, RoutedEventArgs e)
     {
-        if (_folderPath.Count <= 1)
+        if (_folderPath.Count > 0)
         {
-            SetBreadcrumbRoot("Drive na nuvem");
-            StatusText.Text = "Você voltou para a raiz do Drive na nuvem.";
+            _folderPath.RemoveAt(_folderPath.Count - 1);
+            UpdateBreadcrumb();
+            await LoadTelegramFilesAsync();
+        }
+    }
+
+    private void UpdateBreadcrumb()
+    {
+        var current = _folderPath.LastOrDefault();
+        BreadcrumbCurrent.Content = current?.Name ?? "Drive na nuvem";
+        BreadcrumbPrevious.Content = _folderPath.Count > 1
+            ? _folderPath[^2].Name
+            : "Drive na nuvem";
+        BreadcrumbPrevious.IsVisible = _folderPath.Count > 0;
+        BreadcrumbSeparator.IsVisible = _folderPath.Count > 0;
+    }
+
+    private async void NavigateToFolder(TelegramFileItem folder)
+    {
+        if (!folder.IsFolder || string.IsNullOrWhiteSpace(folder.FolderKey))
+            return;
+
+        _folderPath.Add(new TelegramFolderLocation(folder.Name, folder.Peer, folder.FolderKey));
+        UpdateBreadcrumb();
+        await LoadTelegramFilesAsync();
+    }
+
+    private async Task CreateTelegramFolderAsync()
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte uma conta do Telegram antes de criar uma pasta.";
             return;
         }
 
-        _folderPath.RemoveAt(_folderPath.Count - 1);
-        BreadcrumbCurrent.Content = _folderPath[^1];
-        BreadcrumbPrevious.Content = _folderPath.Count > 1 ? _folderPath[^2] : "";
-        BreadcrumbPrevious.IsVisible = _folderPath.Count > 1;
-        BreadcrumbSeparator.IsVisible = _folderPath.Count > 1;
-        StatusText.Text = $"Pasta atual: {_folderPath[^1]}";
-    }
+        var accountName = _telegramClient.User.ToString();
+        var nameInput = new TextBox { Watermark = "Nome da pasta", MinWidth = 330 };
+        var accountText = new TextBlock
+        {
+            Text = $"Serviço: Telegram\nConta: {accountName}\nDestino: chat privado do Telegram",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        var hint = new TextBlock
+        {
+            Text = $"O chat será identificado como Nome{TelegramFolderMarker}. O marcador é necessário para o OmniDrive reconhecer a pasta.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            FontSize = 11,
+            Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#A49CAF"))
+        };
+        var createButton = new Button { Content = "Criar pasta", Classes = { "action" }, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancelButton = new Button { Content = "Cancelar", Classes = { "ghost" }, HorizontalAlignment = HorizontalAlignment.Right };
+        var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8 };
+        buttons.Children.Add(cancelButton);
+        buttons.Children.Add(createButton);
+        var body = new StackPanel { Margin = new Thickness(22), Spacing = 12 };
+        body.Children.Add(new TextBlock { Text = "Criar pasta no Telegram", FontSize = 18, FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        body.Children.Add(accountText);
+        body.Children.Add(nameInput);
+        body.Children.Add(hint);
+        body.Children.Add(buttons);
 
-    private void NavigateToFolder(string folderName)
-    {
+        var dialog = new Window
+        {
+            Title = "Criar pasta · OmniDrive",
+            Width = 460,
+            Height = 330,
+            MinWidth = 460,
+            MinHeight = 330,
+            MaxWidth = 460,
+            MaxHeight = 330,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#201D28")),
+            Content = body
+        };
+        createButton.Click += (_, _) => dialog.Close(nameInput.Text?.Trim());
+        cancelButton.Click += (_, _) => dialog.Close(null);
+
+        var requestedName = await dialog.ShowDialog<string?>(this);
+        var folderName = requestedName?.Trim();
         if (string.IsNullOrWhiteSpace(folderName))
             return;
+        if (folderName.Contains('\n') || folderName.Contains('\r'))
+        {
+            TelegramFilesStatus.Text = "O nome da pasta deve ficar em uma única linha.";
+            return;
+        }
+        if (folderName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
+            folderName = folderName[..^TelegramFolderMarker.Length].Trim();
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            TelegramFilesStatus.Text = "Informe um nome válido para a pasta.";
+            return;
+        }
 
-        _folderPath.Add(folderName);
-        BreadcrumbPrevious.Content = _folderPath.Count > 1 ? _folderPath[^2] : "";
-        BreadcrumbPrevious.IsVisible = _folderPath.Count > 1;
-        BreadcrumbSeparator.IsVisible = _folderPath.Count > 1;
-        BreadcrumbCurrent.Content = _folderPath[^1];
+        var title = folderName + TelegramFolderMarker;
+        try
+        {
+            TelegramFilesStatus.Text = $"Criando “{folderName}” no Telegram...";
+            await _telegramClient.Channels_CreateChannel(title, "Pasta gerenciada pelo OmniDrive.", megagroup: true);
+
+            var dialogs = await _telegramClient.Messages_GetAllDialogs();
+            string? createdKey = null;
+            foreach (var item in dialogs.dialogs)
+            {
+                var entity = dialogs.UserOrChat(item);
+                var entityTitle = entity switch
+                {
+                    TL.Chat chat => chat.title,
+                    Channel channel => channel.title,
+                    _ => null
+                };
+                if (!string.Equals(entityTitle, title, StringComparison.Ordinal))
+                    continue;
+                createdKey = GetTelegramPeerKey(entity!);
+                if (createdKey is not null)
+                    break;
+            }
+
+            if (createdKey is null)
+            {
+                TelegramFilesStatus.Text = $"O Telegram criou o chat “{title}”, mas ele ainda não apareceu na lista. Clique em Atualizar arquivos.";
+                await LoadTelegramFilesAsync();
+                return;
+            }
+
+            _folderParents[createdKey] = _folderPath.LastOrDefault()?.Key;
+            SaveTelegramFolderMap();
+            await LoadTelegramFilesAsync();
+            TelegramFilesStatus.Text = $"Pasta “{folderName}” criada na conta Telegram {accountName}.";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível criar a pasta no Telegram: {ex.Message}";
+        }
     }
+
+    private sealed record TelegramFolderLocation(string Name, InputPeer Peer, string Key);
 
     private void Search_TextChanged(object? sender, TextChangedEventArgs e)
     {
