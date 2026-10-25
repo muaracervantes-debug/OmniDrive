@@ -14,6 +14,7 @@ public sealed class TelegramFileItem
     public InputPeer Peer { get; }
     public DateTimeOffset MessageDate { get; }
     public bool IsFolder { get; }
+    public string Icon => IsFolder ? "📁" : "▤";
     public string? FolderKey { get; }
 
     public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null)
