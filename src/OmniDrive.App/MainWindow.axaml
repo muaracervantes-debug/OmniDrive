@@ -86,7 +86,7 @@
                   <TextBlock x:Name="TelegramFilesStatus" Text="" Classes="muted" FontSize="11" Margin="14,10"/>
                   <ListBox x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped">
                     <ListBox.ItemTemplate>
-                      <DataTemplate>
+                      <DataTemplate x:DataType="local:TelegramFileItem">
                         <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1">
                           <Grid ColumnDefinitions="38,*,110,150" ColumnSpacing="10">
                             <Border Width="34" Height="34" CornerRadius="9" Background="#332641" VerticalAlignment="Center"><TextBlock Text="▤" FontSize="17" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>

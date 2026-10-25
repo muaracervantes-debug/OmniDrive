@@ -999,30 +999,6 @@ public partial class MainWindow : Window
             : new GridLength(0);
     }
 
-    public sealed class TelegramFileItem
-    {
-        public string Name { get; }
-        public string ChatName { get; }
-        public string SizeLabel { get; }
-        public string DateLabel { get; }
-        public long SizeBytes { get; }
-        public int MessageId { get; }
-        public InputPeer Peer { get; }
-        public DateTimeOffset MessageDate { get; }
-
-        public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer)
-        {
-            Name = name;
-            ChatName = chatName;
-            SizeLabel = sizeLabel;
-            DateLabel = dateLabel;
-            SizeBytes = sizeBytes;
-            MessageId = messageId;
-            Peer = peer;
-            MessageDate = DateTimeOffset.TryParse(dateLabel, out var parsed) ? parsed : DateTimeOffset.MinValue;
-        }
-    }
-
     private sealed class RelayUiCommand(System.Action action) : System.Windows.Input.ICommand
     {
         public event System.EventHandler? CanExecuteChanged;
