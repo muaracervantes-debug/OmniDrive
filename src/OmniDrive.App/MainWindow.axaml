@@ -82,9 +82,9 @@
                     <TextBlock x:Name="FilesEmptyDescription" Text="Conecte sua conta do Telegram e clique em “Atualizar arquivos” para listar documentos recentes das conversas disponíveis." Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
-                <StackPanel x:Name="CloudFilesContainer" IsVisible="False" Spacing="0">
+                <Grid x:Name="CloudFilesContainer" IsVisible="False" RowDefinitions="Auto,*" ClipToBounds="True">
                   <TextBlock x:Name="TelegramFilesStatus" Text="" Classes="muted" FontSize="11" Margin="14,10"/>
-                  <ListBox x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped">
+                  <ListBox Grid.Row="1" x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="local:TelegramFileItem">
                         <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1">
@@ -101,7 +101,7 @@
                       </DataTemplate>
                     </ListBox.ItemTemplate>
                   </ListBox>
-                </StackPanel>
+                </Grid>
               </Grid>
             </Grid>
           </Border>
