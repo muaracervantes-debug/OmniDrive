@@ -90,7 +90,7 @@
                       <DataTemplate x:DataType="local:TelegramFileItem">
                         <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1" Background="Transparent" PointerEntered="CloudFileRow_PointerEntered" PointerExited="CloudFileRow_PointerExited">
                           <Grid ColumnDefinitions="38,*,110,130,Auto" ColumnSpacing="10">
-                            <Border Width="34" Height="34" CornerRadius="9" Background="#332641" VerticalAlignment="Center"><TextBlock Text="▤" FontSize="17" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                            <Border Width="34" Height="34" CornerRadius="9" Background="#332641" VerticalAlignment="Center"><TextBlock Text="{Binding Icon}" FontSize="17" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                             <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                               <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                               <TextBlock Text="{Binding ChatName}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis"/>
