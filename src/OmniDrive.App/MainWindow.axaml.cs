@@ -87,6 +87,8 @@ public partial class MainWindow : Window
         SelectionCount = this.FindControl<TextBlock>(nameof(SelectionCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectionCount");
         SelectAllCheckBox = this.FindControl<CheckBox>(nameof(SelectAllCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectAllCheckBox");
         EmptyFilesState = this.FindControl<Grid>(nameof(EmptyFilesState)) ?? throw new InvalidOperationException("Controle XAML não encontrado: EmptyFilesState");
+        FilesEmptyTitle = this.FindControl<TextBlock>(nameof(FilesEmptyTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyTitle");
+        FilesEmptyDescription = this.FindControl<TextBlock>(nameof(FilesEmptyDescription)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyDescription");
         DetailsPanel = this.FindControl<Border>(nameof(DetailsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DetailsPanel");
         SettingsContent = this.FindControl<Grid>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
         SettingsConnectPage = this.FindControl<ScrollViewer>(nameof(SettingsConnectPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsConnectPage");
