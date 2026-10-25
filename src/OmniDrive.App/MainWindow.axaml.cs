@@ -11,6 +11,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
+using Avalonia.Platform.Storage;
 using WTelegram;
 using TL;
 
@@ -43,6 +44,7 @@ public partial class MainWindow : Window
         CloudFilesContainer = this.FindControl<Grid>(nameof(CloudFilesContainer)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesContainer");
         TelegramFilesStatus = this.FindControl<TextBlock>(nameof(TelegramFilesStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramFilesStatus");
         UpdateTransferQueueDisplay();
+        UpdateTransferQueuePosition();
         LoadSettings();
         LoadTelegramCredentials();
         RefreshConnectionControls();
@@ -343,7 +345,135 @@ public partial class MainWindow : Window
         if (CloudFilesList.SelectedItem is not TelegramFileItem file)
             return;
 
-        TelegramFilesStatus.Text = $"{file.Name} — localizado em {file.ChatName}. A abertura/baixar do arquivo será adicionada em uma etapa seguinte.";
+        ShowTelegramFileOptions(file);
+    }
+
+    private async void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: TelegramFileItem file })
+            return;
+
+        if (_telegramClient is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de baixar arquivos.";
+            return;
+        }
+
+        try
+        {
+            var saveFile = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Salvar arquivo do Telegram",
+                SuggestedFileName = file.Name
+            });
+            if (saveFile is null)
+                return;
+
+            TelegramFilesStatus.Text = $"Preparando o download de {file.Name}...";
+            var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
+            var message = history.Messages.OfType<Message>().FirstOrDefault(m => m.ID == file.MessageId);
+            if (message?.media is not MessageMediaDocument { document: Document document })
+            {
+                TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
+                return;
+            }
+
+            await using var output = await saveFile.OpenWriteAsync();
+            await _telegramClient.DownloadFileAsync(document, output);
+            TelegramFilesStatus.Text = $"Download concluído: {file.Name}";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível baixar {file.Name}: {ex.Message}";
+        }
+    }
+
+    private void TelegramFileOptions_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: TelegramFileItem file })
+            ShowTelegramFileOptions(file);
+    }
+
+    private void ShowTelegramFileOptions(TelegramFileItem file)
+    {
+        var menu = new ContextMenu();
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Abrir",
+            Command = new RelayUiCommand(() =>
+                TelegramFilesStatus.Text = $"Este item é um documento do Telegram: {file.Name}. Para abrir, baixe o arquivo primeiro.")
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Baixar",
+            Command = new RelayUiCommand(() => DownloadTelegramFileForItem(file))
+        });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Renomear",
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Renomear ainda não é compatível com documentos do Telegram.")
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Fazer uma cópia",
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Criar cópias diretamente no Telegram ainda não é compatível.")
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Organizar",
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Opções de organização ainda não estão disponíveis para documentos do Telegram.")
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Informações sobre o arquivo",
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"{file.Name} · {file.SizeLabel} · {file.ChatName} · {file.DateLabel}")
+        });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Mover para a lixeira",
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "O OmniDrive não pode mover mensagens do Telegram para a lixeira nesta versão.")
+        });
+
+        menu.Open(CloudFilesList);
+    }
+
+    private async void DownloadTelegramFileForItem(TelegramFileItem file)
+    {
+        if (_telegramClient is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de baixar arquivos.";
+            return;
+        }
+
+        try
+        {
+            var saveFile = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Salvar arquivo do Telegram",
+                SuggestedFileName = file.Name
+            });
+            if (saveFile is null)
+                return;
+
+            TelegramFilesStatus.Text = $"Preparando o download de {file.Name}...";
+            var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
+            var message = history.Messages.OfType<Message>().FirstOrDefault(m => m.ID == file.MessageId);
+            if (message?.media is not MessageMediaDocument { document: Document document })
+            {
+                TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
+                return;
+            }
+
+            await using var output = await saveFile.OpenWriteAsync();
+            await _telegramClient.DownloadFileAsync(document, output);
+            TelegramFilesStatus.Text = $"Download concluído: {file.Name}";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível baixar {file.Name}: {ex.Message}";
+        }
     }
 
     private void New_Click(object? sender, RoutedEventArgs e)
