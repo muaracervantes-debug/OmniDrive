@@ -40,7 +40,7 @@ public partial class MainWindow : Window
         TransferItemsList.ItemsSource = TransferQueue;
         CloudFilesList = this.FindControl<ListBox>(nameof(CloudFilesList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesList");
         CloudFilesList.ItemsSource = CloudFiles;
-        CloudFilesContainer = this.FindControl<StackPanel>(nameof(CloudFilesContainer)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesContainer");
+        CloudFilesContainer = this.FindControl<Grid>(nameof(CloudFilesContainer)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesContainer");
         TelegramFilesStatus = this.FindControl<TextBlock>(nameof(TelegramFilesStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramFilesStatus");
         UpdateTransferQueueDisplay();
         LoadSettings();
