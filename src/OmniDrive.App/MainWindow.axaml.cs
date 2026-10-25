@@ -12,6 +12,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
 using WTelegram;
+using TL;
 
 namespace OmniDrive.App;
 
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
     private int _completedTransfers;
     private TransferQueueItem? _selectedTransfer;
     public ObservableCollection<TransferQueueItem> TransferQueue { get; } = new();
+    public ObservableCollection<TelegramFileItem> CloudFiles { get; } = new();
     private readonly string _settingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "OmniDrive",
@@ -36,6 +38,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         TransferItemsList.ItemsSource = TransferQueue;
+        CloudFilesList = this.FindControl<ListBox>(nameof(CloudFilesList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesList");
+        CloudFilesList.ItemsSource = CloudFiles;
+        CloudFilesContainer = this.FindControl<StackPanel>(nameof(CloudFilesContainer)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesContainer");
+        TelegramFilesStatus = this.FindControl<TextBlock>(nameof(TelegramFilesStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramFilesStatus");
         UpdateTransferQueueDisplay();
         LoadSettings();
         LoadTelegramCredentials();
@@ -205,6 +211,121 @@ public partial class MainWindow : Window
         TrashNav.Classes.Remove("selected");
         SettingsNav.Classes.Remove("selected");
         selected.Classes.Add("selected");
+    }
+
+    private async void LoadTelegramFiles_Click(object? sender, RoutedEventArgs e) => await LoadTelegramFilesAsync();
+
+    private async Task LoadTelegramFilesAsync()
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram em Configurações → Conectar serviços antes de carregar arquivos.";
+            EmptyFilesState.IsVisible = true;
+            CloudFilesContainer.IsVisible = false;
+            return;
+        }
+
+        TelegramFilesStatus.Text = "Consultando conversas e documentos do Telegram...";
+        FilesEmptyTitle.Text = "Carregando arquivos…";
+        FilesEmptyDescription.Text = "Estamos verificando as conversas disponíveis na sua conta.";
+        EmptyFilesState.IsVisible = true;
+        CloudFilesContainer.IsVisible = false;
+        CloudFiles.Clear();
+
+        try
+        {
+            var dialogs = await _telegramClient.Messages_GetAllDialogs();
+            var dialogList = dialogs.dialogs.Take(50).ToList();
+            var scanned = 0;
+
+            foreach (var dialog in dialogList)
+            {
+                try
+                {
+                    var peer = dialog.Peer;
+                    var chatName = dialogs.UserOrChat(dialog)?.ToString() ?? "Conversa do Telegram";
+                    var history = await _telegramClient.Messages_GetHistory(peer, limit: 100);
+
+                    foreach (var message in history.Messages.OfType<Message>())
+                    {
+                        if (message.media is not MessageMediaDocument mediaDocument || mediaDocument.document is not Document document)
+                            continue;
+
+                        var fileName = document.attributes?
+                            .OfType<DocumentAttributeFilename>()
+                            .Select(attribute => attribute.file_name)
+                            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+
+                        if (string.IsNullOrWhiteSpace(fileName))
+                            fileName = $"Telegram_documento_{message.ID}";
+
+                        var date = DateTimeOffset.FromUnixTimeSeconds(message.date).ToLocalTime();
+                        CloudFiles.Add(new TelegramFileItem(
+                            fileName,
+                            chatName,
+                            FormatFileSize(document.size),
+                            date.ToString("dd/MM/yyyy HH:mm"),
+                            document.size,
+                            message.ID,
+                            peer));
+                    }
+                    scanned++;
+                }
+                catch
+                {
+                    // Alguns diálogos podem não permitir a leitura do histórico; os demais continuam sendo verificados.
+                }
+            }
+
+            var sorted = CloudFiles.OrderByDescending(file => file.MessageDate).ToList();
+            CloudFiles.Clear();
+            foreach (var file in sorted)
+                CloudFiles.Add(file);
+
+            if (CloudFiles.Count == 0)
+            {
+                FilesEmptyTitle.Text = "Nenhum documento encontrado";
+                FilesEmptyDescription.Text = $"Foram verificadas {scanned} conversas e até 100 mensagens recentes por conversa. Tente atualizar novamente ou confira se há documentos nessas conversas.";
+                EmptyFilesState.IsVisible = true;
+                CloudFilesContainer.IsVisible = false;
+                TelegramFilesStatus.Text = "Nenhum documento encontrado nas mensagens recentes.";
+            }
+            else
+            {
+                EmptyFilesState.IsVisible = false;
+                CloudFilesContainer.IsVisible = true;
+                TelegramFilesStatus.Text = $"{CloudFiles.Count} documento(s) encontrado(s) em {scanned} conversa(s). Mostrando até 100 mensagens recentes por conversa.";
+            }
+        }
+        catch (Exception ex)
+        {
+            FilesEmptyTitle.Text = "Não foi possível carregar os arquivos";
+            FilesEmptyDescription.Text = ex.Message;
+            EmptyFilesState.IsVisible = true;
+            CloudFilesContainer.IsVisible = false;
+            TelegramFilesStatus.Text = "Falha ao consultar o Telegram.";
+        }
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:0.##} {units[unit]}";
+    }
+
+    private void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (CloudFilesList.SelectedItem is not TelegramFileItem file)
+            return;
+
+        TelegramFilesStatus.Text = $"{file.Name} — localizado em {file.ChatName}. A abertura/baixar do arquivo será adicionada em uma etapa seguinte.";
     }
 
     private void New_Click(object? sender, RoutedEventArgs e)
@@ -599,7 +720,8 @@ public partial class MainWindow : Window
                 TelegramLoginInputPanel.IsVisible = false;
                 TelegramLoginInput.Text = "";
                 TelegramConnectButton.Content = "Conectado";
-                TelegramStatus.Text = $"Conectado ao Telegram como {_telegramClient.User}. As credenciais e a sessão foram salvas para próximas versões.";
+                TelegramStatus.Text = $"Conectado ao Telegram como {_telegramClient.User}. A sessão está pronta para consultar seus arquivos.";
+                await LoadTelegramFilesAsync();
                 return;
             }
 
@@ -864,6 +986,30 @@ public partial class MainWindow : Window
         parentGrid.ColumnDefinitions[1].Width = _detailsVisible
             ? new GridLength(300)
             : new GridLength(0);
+    }
+
+    public sealed class TelegramFileItem
+    {
+        public string Name { get; }
+        public string ChatName { get; }
+        public string SizeLabel { get; }
+        public string DateLabel { get; }
+        public long SizeBytes { get; }
+        public int MessageId { get; }
+        public InputPeer Peer { get; }
+        public DateTimeOffset MessageDate { get; }
+
+        public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer)
+        {
+            Name = name;
+            ChatName = chatName;
+            SizeLabel = sizeLabel;
+            DateLabel = dateLabel;
+            SizeBytes = sizeBytes;
+            MessageId = messageId;
+            Peer = peer;
+            MessageDate = DateTimeOffset.TryParse(dateLabel, out var parsed) ? parsed : DateTimeOffset.MinValue;
+        }
     }
 
     private sealed class RelayUiCommand(System.Action action) : System.Windows.Input.ICommand

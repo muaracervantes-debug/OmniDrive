@@ -60,7 +60,7 @@
                 <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
                 <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
               </StackPanel>
-              <Button Grid.Column="1" HorizontalAlignment="Right" Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Content="↻ Atualizar arquivos"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button></StackPanel>
             </Grid>
           </Grid>
           <Border Grid.Row="1" Classes="panel" Padding="0" VerticalAlignment="Stretch">
@@ -74,11 +74,33 @@
                   <TextBlock Grid.Column="4" Text="" />
                 </Grid>
               </Border>
-              <Grid Grid.Row="1" x:Name="EmptyFilesState" Margin="24">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360" Spacing="10">
-                  <Border Width="58" Height="58" CornerRadius="18" Background="#332641"><TextBlock Text="▤" FontSize="29" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
-                  <TextBlock Text="Nenhum arquivo disponível" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                  <TextBlock Text="Conecte um serviço para carregar a lista. Os arquivos e seus metadados serão exibidos aqui quando o provedor fornecer essas informações." Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
+              <Grid Grid.Row="1">
+                <Grid x:Name="EmptyFilesState" Margin="24">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="390" Spacing="10">
+                    <Border Width="58" Height="58" CornerRadius="18" Background="#332641"><TextBlock Text="▤" FontSize="29" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <TextBlock x:Name="FilesEmptyTitle" Text="Nenhum arquivo carregado" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="FilesEmptyDescription" Text="Conecte sua conta do Telegram e clique em “Atualizar arquivos” para listar documentos recentes das conversas disponíveis." Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Grid>
+                <StackPanel x:Name="CloudFilesContainer" IsVisible="False" Spacing="0">
+                  <TextBlock x:Name="TelegramFilesStatus" Text="" Classes="muted" FontSize="11" Margin="14,10"/>
+                  <ListBox x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1">
+                          <Grid ColumnDefinitions="38,*,110,150" ColumnSpacing="10">
+                            <Border Width="34" Height="34" CornerRadius="9" Background="#332641" VerticalAlignment="Center"><TextBlock Text="▤" FontSize="17" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                            <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock Text="{Binding ChatName}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding SizeLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding DateLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
                 </StackPanel>
               </Grid>
             </Grid>
