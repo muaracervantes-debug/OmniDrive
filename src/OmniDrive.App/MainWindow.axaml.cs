@@ -305,23 +305,6 @@ public partial class MainWindow : Window
                         if (currentFolder is null || !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
                             continue;
                     }
-                    else if (currentFolder is not null || entity is User)
-                    {
-                        // Na raiz, conversas privadas comuns não são destinos de pasta; dentro de uma pasta,
-                        // somente o chat selecionado deve ser listado.
-                        if (currentFolder is not null || entity is User)
-                        {
-                            if (currentFolder is null)
-                                continue;
-                            if (!string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
-                                continue;
-                        }
-                    }
-                    else if (currentFolder is null && (entity is TL.Chat or Channel))
-                    {
-                        // Chats normais permanecem visíveis na raiz como origem dos documentos.
-                    }
-
                     if (currentFolder is not null && !string.Equals(currentFolder.Key, peerKey, StringComparison.Ordinal))
                         continue;
                     if (currentFolder is null && isFolder)
@@ -462,8 +445,8 @@ public partial class MainWindow : Window
         if (sender is not Border row)
             return;
 
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
-            button.IsVisible = true;
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem item))
+            button.IsVisible = button.Content?.ToString() != "⇩" || !item.IsFolder;
     }
 
     private void CloudFileRow_PointerExited(object? sender, PointerEventArgs e)
@@ -472,14 +455,20 @@ public partial class MainWindow : Window
             return;
 
         var isSelected = ReferenceEquals(CloudFilesList.SelectedItem, row.DataContext);
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
-            button.IsVisible = isSelected;
+        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem item))
+            button.IsVisible = isSelected && (button.Content?.ToString() != "⇩" || !item.IsFolder);
     }
 
-    private void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
+    private async void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
     {
         if (CloudFilesList.SelectedItem is not TelegramFileItem file)
             return;
+
+        if (file.IsFolder)
+        {
+            NavigateToFolder(file);
+            return;
+        }
 
         ShowTelegramFileOptions(file);
     }
@@ -533,6 +522,22 @@ public partial class MainWindow : Window
     private void ShowTelegramFileOptions(TelegramFileItem file)
     {
         var menu = new ContextMenu();
+        if (file.IsFolder)
+        {
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Abrir pasta",
+                Command = new RelayUiCommand(() => NavigateToFolder(file))
+            });
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Informações sobre a pasta",
+                Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"Pasta: {file.Name} · Serviço: Telegram · Identificador: {file.FolderKey}")
+            });
+            menu.Open(CloudFilesList);
+            return;
+        }
+
         menu.Items.Add(new MenuItem
         {
             Header = "Abrir",
