@@ -13,8 +13,10 @@ public sealed class TelegramFileItem
     public int MessageId { get; }
     public InputPeer Peer { get; }
     public DateTimeOffset MessageDate { get; }
+    public bool IsFolder { get; }
+    public string? FolderKey { get; }
 
-    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer)
+    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null)
     {
         Name = name;
         ChatName = chatName;
@@ -23,6 +25,8 @@ public sealed class TelegramFileItem
         SizeBytes = sizeBytes;
         MessageId = messageId;
         Peer = peer;
+        IsFolder = isFolder;
+        FolderKey = folderKey;
         MessageDate = DateTimeOffset.TryParse(dateLabel, out var parsed) ? parsed : DateTimeOffset.MinValue;
     }
 }
