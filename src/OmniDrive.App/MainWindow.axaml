@@ -55,9 +55,10 @@
               </StackPanel>
             </Border>
             <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" Margin="0,2,0,0">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Classes="ghost" Click="Back_Click" IsEnabled="False" x:Name="BackButton" Content="← Voltar"/>
-                <Border Background="#25212D" CornerRadius="9" Padding="12,8"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="▤" Foreground="#C084FC"/><TextBlock Text="Todos os serviços" FontSize="12"/><TextBlock Text="›" Classes="muted"/><TextBlock x:Name="BreadcrumbCurrent" Text="Raiz" FontSize="12" Foreground="#E6C7FF"/></StackPanel></Border>
+              <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                <Button x:Name="BreadcrumbPrevious" Classes="ghost" Padding="8,7" Content="Pasta anterior" Click="BreadcrumbPrevious_Click" IsVisible="False" ToolTip.Tip="Voltar para a pasta anterior"/>
+                <TextBlock x:Name="BreadcrumbSeparator" Text="›" Classes="muted" VerticalAlignment="Center" IsVisible="False" Margin="3,0"/>
+                <Button x:Name="BreadcrumbCurrent" Classes="ghost" Padding="8,7" Content="Drive na nuvem" Click="BreadcrumbCurrent_Click" ToolTip.Tip="Pasta atual"/>
                 <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Content="↻ Atualizar arquivos"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="＋" FontSize="17"/><TextBlock Text="Novo"/></StackPanel></Button></StackPanel>
