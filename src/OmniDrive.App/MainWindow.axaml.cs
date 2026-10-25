@@ -270,7 +270,7 @@ public partial class MainWindow : Window
                         if (string.IsNullOrWhiteSpace(fileName))
                             fileName = $"Telegram_documento_{message.ID}";
 
-                        var date = DateTimeOffset.FromUnixTimeSeconds(message.date).ToLocalTime();
+                        var date = message.date.ToLocalTime();
                         CloudFiles.Add(new TelegramFileItem(
                             fileName,
                             chatName,
