@@ -1887,15 +1887,6 @@ public partial class MainWindow : Window
     private static string FormatElapsed(TimeSpan elapsed) =>
         elapsed.TotalMinutes >= 1 ? $"{(int)elapsed.TotalMinutes} min {elapsed.Seconds} s" : $"{Math.Max(0, (int)elapsed.TotalSeconds)} s";
 
-    private static string FormatFileSize(long bytes)
-    {
-        string[] units = { "B", "KB", "MB", "GB", "TB" };
-        double size = bytes;
-        var unit = 0;
-        while (size >= 1024 && unit < units.Length - 1) { size /= 1024; unit++; }
-        return $"{size:0.##} {units[unit]}";
-    }
-
     private void TransferDetailsOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         TransferDetailsOverlay.IsVisible = false;
