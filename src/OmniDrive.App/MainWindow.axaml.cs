@@ -956,12 +956,12 @@ public partial class MainWindow : Window
                     });
                     var destination = _folderPath.LastOrDefault()?.Peer ?? new InputPeerSelf();
                     var mimeType = GetMimeType(uploadName);
-                    await _telegramClient.Messages_SendMedia(destination, string.Empty, new InputMediaUploadedDocument
+                    await _telegramClient.Messages_SendMedia(destination, new InputMediaUploadedDocument
                     {
                         file = uploadedFile,
                         mime_type = mimeType,
                         attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = uploadName } }
-                    });
+                    }, string.Empty, Random.Shared.NextInt64());
                     if (entry.VerifyHash)
                     {
                         var finalHash = await ComputeSha256Async(sourcePath);
