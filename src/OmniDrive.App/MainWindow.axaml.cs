@@ -920,10 +920,29 @@ public partial class MainWindow : Window
         var button = sender as Button;
         if (button is not null) button.IsEnabled = false;
         var uploadFailed = false;
+        var queuedUploads = _pendingUploads.ToDictionary(entry => entry, entry => new TransferQueueItem
+        {
+            Icon = entry.IsFolder || entry.Compress ? "🗜" : "📄",
+            FileName = entry.UploadName,
+            PartDescription = "Na fila",
+            Service = "Telegram",
+            Credential = entry.Credential,
+            Status = "Aguardando",
+            ProgressLabel = "Aguardando",
+            Size = File.Exists(entry.SourcePath) ? FormatFileSize(new FileInfo(entry.SourcePath).Length) : "—",
+            Elapsed = "0 s"
+        });
+        foreach (var item in queuedUploads.Values) TransferQueue.Add(item);
+        TransferQueuePanel.IsVisible = true;
+        UpdateTransferQueueDisplay();
         try
         {
             foreach (var entry in _pendingUploads.ToList())
             {
+                var queueItem = queuedUploads[entry];
+                var transferStarted = DateTime.UtcNow;
+                queueItem.Status = "Preparando";
+                queueItem.PartDescription = "Preparando arquivo";
                 string? tempPath = null;
                 try
                 {
@@ -949,11 +968,23 @@ public partial class MainWindow : Window
                         throw new FileNotFoundException("O arquivo local não foi encontrado.", sourcePath);
 
                     var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
+                    queueItem.FileName = uploadName;
+                    queueItem.Size = FormatFileSize(new FileInfo(sourcePath).Length);
+                    queueItem.Status = "Enviando";
+                    queueItem.PartDescription = "Enviando arquivo";
                     UploadModalStatus.Text = $"Enviando {uploadName} para o Telegram...";
                     var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, (transmitted, totalSize) =>
                     {
-                        var progress = totalSize > 0 ? (double)transmitted / totalSize : 0d;
-                        Dispatcher.UIThread.Post(() => UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}");
+                        var progress = totalSize > 0 ? Math.Clamp((double)transmitted / totalSize * 100d, 0d, 100d) : 0d;
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            queueItem.Percentage = progress;
+                            queueItem.ProgressLabel = $"Enviando · {progress:0}%";
+                            queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
+                            queueItem.Status = "Enviando";
+                            UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}";
+                            if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
+                        });
                     });
                     var destination = _folderPath.LastOrDefault()?.Peer ?? new InputPeerSelf();
                     var mimeType = GetMimeType(uploadName);
@@ -969,11 +1000,25 @@ public partial class MainWindow : Window
                         if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
                             throw new IOException("A verificação local do hash falhou.");
                     }
+                    queueItem.Percentage = 100;
+                    queueItem.ProgressLabel = "Concluído";
+                    queueItem.Status = "Concluído";
+                    queueItem.PartDescription = "Concluído";
+                    queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
+                    _completedTransfers++;
+                    UpdateTransferQueueDisplay();
+                    if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                     UploadModalStatus.Text = $"Upload concluído: {uploadName}";
                 }
                 catch (Exception ex)
                 {
                     uploadFailed = true;
+                    queueItem.Status = "Falhou";
+                    queueItem.ProgressLabel = "Falhou";
+                    queueItem.PartDescription = ex.Message;
+                    queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
+                    UpdateTransferQueueDisplay();
+                    if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                     UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {ex.Message}";
                     TelegramFilesStatus.Text = UploadModalStatus.Text;
                     break;
@@ -1796,7 +1841,11 @@ public partial class MainWindow : Window
     private void UpdateTransferQueueDisplay()
     {
         if (TransferQueueCount is not null)
-            TransferQueueCount.Text = $"{_completedTransfers} / {_completedTransfers + TransferQueue.Count}";
+        {
+            var completed = TransferQueue.Count(item => item.Status == "Concluído") + _completedTransfers;
+            var total = TransferQueue.Count + _completedTransfers;
+            TransferQueueCount.Text = $"{completed} / {total}";
+        }
         if (TransferQueueEmpty is not null)
             TransferQueueEmpty.IsVisible = TransferQueue.Count == 0;
     }
@@ -1820,16 +1869,33 @@ public partial class MainWindow : Window
             return;
 
         _selectedTransfer = item;
+        RefreshTransferDetails(item);
+        TransferDetailsOverlay.IsVisible = true;
+    }
+
+    private void RefreshTransferDetails(TransferQueueItem item)
+    {
         TransferDetailName.Text = item.FileName;
         TransferDetailService.Text = $"Serviço: {item.Service}";
         TransferDetailCredential.Text = $"Credencial: {item.Credential}";
-        TransferDetailPercent.Text = $"Progresso: {item.Percentage:0.##}%";
+        TransferDetailPercent.Text = $"Progresso: {item.Percentage:0.##}% · {item.Status}";
         TransferDetailSpeed.Text = $"Velocidade: {item.Speed}";
         TransferDetailProgress.Value = item.Percentage;
         TransferDetailElapsed.Text = item.Elapsed;
         TransferDetailSize.Text = item.Size;
         TransferDetailPart.Text = item.PartDescription == "—" ? "Parte: arquivo não dividido" : $"Parte atual: {item.PartDescription}";
-        TransferDetailsOverlay.IsVisible = true;
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed) =>
+        elapsed.TotalMinutes >= 1 ? $"{(int)elapsed.TotalMinutes} min {elapsed.Seconds} s" : $"{Math.Max(0, (int)elapsed.TotalSeconds)} s";
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        double size = bytes;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1) { size /= 1024; unit++; }
+        return $"{size:0.##} {units[unit]}";
     }
 
     private void TransferDetailsOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
