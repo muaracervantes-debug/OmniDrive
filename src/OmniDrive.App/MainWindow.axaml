@@ -335,7 +335,8 @@
             <Border Grid.Row="0" Grid.Column="0" Classes="panel" Padding="14">
               <StackPanel Spacing="9">
                 <TextBlock Text="Nome" FontSize="14" FontWeight="SemiBold"/>
-                <TextBlock Text="Usa o texto digitado na barra de pesquisa acima." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                <TextBox x:Name="NameFilter" Watermark="Ex.: Diego pato"/>
+                <TextBlock Text="Digite uma ou mais palavras; cada palavra é pesquisada separadamente." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
                 <ToggleSwitch x:Name="NameRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
               </StackPanel>
             </Border>
@@ -424,10 +425,7 @@
             <Border Grid.Row="3" Grid.Column="0" Classes="panel" Padding="14">
               <StackPanel Spacing="9">
                 <TextBlock Text="Número de partes" FontSize="14" FontWeight="SemiBold"/>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <TextBox x:Name="PartsMinFilter" Watermark="Mínimo"/>
-                  <TextBox x:Name="PartsMaxFilter" Grid.Column="1" Watermark="Máximo"/>
-                </Grid>
+                <TextBox x:Name="PartsCountFilter" Watermark="Quantidade exata de partes"/>
                 <TextBlock Text="Arquivos não divididos contam como 1 parte." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
                 <ToggleSwitch x:Name="PartsRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
               </StackPanel>
