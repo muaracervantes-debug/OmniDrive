@@ -3,7 +3,7 @@
         xmlns:local="using:OmniDrive.App"
         x:Class="OmniDrive.App.MainWindow"
         Title="OmniDrive" Width="1440" Height="900" MinWidth="1020" MinHeight="680"
-        WindowStartupLocation="CenterScreen" Background="#14121B" Foreground="#F4F0FA">
+        WindowState="Maximized" WindowStartupLocation="CenterScreen" Background="#14121B" Foreground="#F4F0FA">
   <Window.Styles>
     <Style Selector="TextBlock.muted"><Setter Property="Foreground" Value="#A49CAF"/></Style>
     <Style Selector="Button.nav"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#BEB6CB"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Padding" Value="14,12"/><Setter Property="CornerRadius" Value="10"/><Setter Property="FontSize" Value="14"/></Style>
@@ -54,7 +54,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="ClearFilters_Click" Content="Limpar filtros"/><Button Classes="action" Click="ApplyFilters_Click" Content="Aplicar filtros"/></StackPanel>
               </StackPanel>
             </Border>
-            <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" Margin="0,2,0,0">
+            <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" Margin="0,2,0,8">
               <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                 <Button x:Name="BreadcrumbPrevious" Classes="ghost" Padding="8,7" Content="Pasta anterior" Click="BreadcrumbPrevious_Click" IsVisible="False" ToolTip.Tip="Voltar para a pasta anterior"/>
                 <TextBlock x:Name="BreadcrumbSeparator" Text="›" Classes="muted" VerticalAlignment="Center" IsVisible="False" Margin="3,0"/>
