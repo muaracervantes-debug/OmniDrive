@@ -15,6 +15,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using WTelegram;
 using TL;
 
