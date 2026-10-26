@@ -22,6 +22,7 @@ public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
     private readonly List<TelegramFolderLocation> _folderPath = new();
+    private List<TelegramFileItem> _loadedCloudFiles = new();
     private readonly Dictionary<string, string?> _folderParents = new(StringComparer.Ordinal);
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
@@ -71,24 +72,29 @@ public partial class MainWindow : Window
         AreaTitle = this.FindControl<TextBlock>(nameof(AreaTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: AreaTitle");
         SearchBox = this.FindControl<TextBox>(nameof(SearchBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SearchBox");
         FilterCount = this.FindControl<TextBlock>(nameof(FilterCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterCount");
-        FilterPanel = this.FindControl<Border>(nameof(FilterPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterPanel");
-        NameRuleMode = this.FindControl<ComboBox>(nameof(NameRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NameRuleMode");
+        FilterModalOverlay = this.FindControl<Grid>(nameof(FilterModalOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterModalOverlay");
+        NameRuleMode = this.FindControl<ToggleSwitch>(nameof(NameRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NameRuleMode");
         SizeMinFilter = this.FindControl<TextBox>(nameof(SizeMinFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMinFilter");
         SizeMaxFilter = this.FindControl<TextBox>(nameof(SizeMaxFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMaxFilter");
-        SizeRuleMode = this.FindControl<ComboBox>(nameof(SizeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeRuleMode");
+        SizeRuleMode = this.FindControl<ToggleSwitch>(nameof(SizeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeRuleMode");
         DateFromFilter = this.FindControl<DatePicker>(nameof(DateFromFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateFromFilter");
         DateToFilter = this.FindControl<DatePicker>(nameof(DateToFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateToFilter");
-        DateRuleMode = this.FindControl<ComboBox>(nameof(DateRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateRuleMode");
+        DateRuleMode = this.FindControl<ToggleSwitch>(nameof(DateRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DateRuleMode");
         ExtensionFilter = this.FindControl<TextBox>(nameof(ExtensionFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ExtensionFilter");
-        ExtensionRuleMode = this.FindControl<ComboBox>(nameof(ExtensionRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ExtensionRuleMode");
+        ExtensionRuleMode = this.FindControl<ToggleSwitch>(nameof(ExtensionRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ExtensionRuleMode");
         ServiceFilter = this.FindControl<ComboBox>(nameof(ServiceFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ServiceFilter");
-        ServiceRuleMode = this.FindControl<ComboBox>(nameof(ServiceRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ServiceRuleMode");
+        ServiceRuleMode = this.FindControl<ToggleSwitch>(nameof(ServiceRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ServiceRuleMode");
         CredentialFilter = this.FindControl<ComboBox>(nameof(CredentialFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CredentialFilter");
-        CredentialRuleMode = this.FindControl<ComboBox>(nameof(CredentialRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CredentialRuleMode");
+        CredentialRuleMode = this.FindControl<ToggleSwitch>(nameof(CredentialRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CredentialRuleMode");
         FavoritesFilter = this.FindControl<ComboBox>(nameof(FavoritesFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesFilter");
-        FavoritesRuleMode = this.FindControl<ComboBox>(nameof(FavoritesRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesRuleMode");
+        FavoritesRuleMode = this.FindControl<ToggleSwitch>(nameof(FavoritesRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FavoritesRuleMode");
         TypeFilter = this.FindControl<ComboBox>(nameof(TypeFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeFilter");
-        TypeRuleMode = this.FindControl<ComboBox>(nameof(TypeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeRuleMode");
+        TypeRuleMode = this.FindControl<ToggleSwitch>(nameof(TypeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeRuleMode");
+        HashFilter = this.FindControl<ComboBox>(nameof(HashFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: HashFilter");
+        HashRuleMode = this.FindControl<ToggleSwitch>(nameof(HashRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: HashRuleMode");
+        PartsMinFilter = this.FindControl<TextBox>(nameof(PartsMinFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsMinFilter");
+        PartsMaxFilter = this.FindControl<TextBox>(nameof(PartsMaxFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsMaxFilter");
+        PartsRuleMode = this.FindControl<ToggleSwitch>(nameof(PartsRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsRuleMode");
         BreadcrumbPrevious = this.FindControl<Button>(nameof(BreadcrumbPrevious)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbPrevious");
         BreadcrumbSeparator = this.FindControl<TextBlock>(nameof(BreadcrumbSeparator)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbSeparator");
         BreadcrumbCurrent = this.FindControl<Button>(nameof(BreadcrumbCurrent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbCurrent");
@@ -380,9 +386,8 @@ public partial class MainWindow : Window
                 .OrderBy(file => file.IsFolder ? 0 : 1)
                 .ThenByDescending(file => file.MessageDate)
                 .ToList();
-            CloudFiles.Clear();
-            foreach (var file in sorted)
-                CloudFiles.Add(file);
+            _loadedCloudFiles = sorted;
+            ApplyCurrentFilters();
 
             if (_loadedCloudFiles.Count == 0)
             {
@@ -940,75 +945,122 @@ public partial class MainWindow : Window
 
     private sealed record TelegramFolderLocation(string Name, InputPeer Peer, string Key);
 
-    private void Search_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (FilterCount is not null && !string.IsNullOrEmpty(FilterCount.Text))
-            return;
-
-        StatusText.Text = string.IsNullOrWhiteSpace(SearchBox.Text)
-            ? "Nenhum serviço conectado"
-            : "Pesquisa por nome preparada; conecte um serviço para pesquisar arquivos.";
-    }
-
-    private void ToggleFilters_Click(object? sender, RoutedEventArgs e) =>
-        FilterPanel.IsVisible = !FilterPanel.IsVisible;
+    private void Search_TextChanged(object? sender, TextChangedEventArgs e) => ApplyCurrentFilters();
+    private void ToggleFilters_Click(object? sender, RoutedEventArgs e) => FilterModalOverlay.IsVisible = true;
+    private void CloseFilters_Click(object? sender, RoutedEventArgs e) => FilterModalOverlay.IsVisible = false;
+    private void FilterModalOverlay_PointerPressed(object? sender, PointerPressedEventArgs e) => FilterModalOverlay.IsVisible = false;
+    private void FilterModalCard_PointerPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
 
     private void ApplyFilters_Click(object? sender, RoutedEventArgs e)
     {
-        var activeRules = new List<string>();
+        if (!ValidateNumericFilters()) return;
+        FilterModalOverlay.IsVisible = false;
+        ApplyCurrentFilters();
+    }
 
-        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
-            activeRules.Add($"{RuleMode(NameRuleMode)} nome");
-        if (!string.IsNullOrWhiteSpace(SizeMinFilter.Text) || !string.IsNullOrWhiteSpace(SizeMaxFilter.Text))
-            activeRules.Add($"{RuleMode(SizeRuleMode)} tamanho");
-        if (DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null)
-            activeRules.Add($"{RuleMode(DateRuleMode)} data");
-        if (!string.IsNullOrWhiteSpace(ExtensionFilter.Text))
-            activeRules.Add($"{RuleMode(ExtensionRuleMode)} extensão");
-        if (ServiceFilter.SelectedIndex > 0)
-            activeRules.Add($"{RuleMode(ServiceRuleMode)} serviço");
-        if (CredentialFilter.SelectedIndex > 0)
-            activeRules.Add($"{RuleMode(CredentialRuleMode)} credencial");
-        if (FavoritesFilter.SelectedIndex > 0)
-            activeRules.Add($"{RuleMode(FavoritesRuleMode)} favoritos");
-        if (TypeFilter.SelectedIndex > 0)
-            activeRules.Add($"{RuleMode(TypeRuleMode)} tipo");
+    private bool ValidateNumericFilters()
+    {
+        if (!string.IsNullOrWhiteSpace(SizeMinFilter.Text) && (!long.TryParse(SizeMinFilter.Text, out var minSize) || minSize < 0))
+        { TelegramFilesStatus.Text = "Informe um tamanho mínimo válido em bytes."; return false; }
+        if (!string.IsNullOrWhiteSpace(SizeMaxFilter.Text) && (!long.TryParse(SizeMaxFilter.Text, out var maxSize) || maxSize < 0))
+        { TelegramFilesStatus.Text = "Informe um tamanho máximo válido em bytes."; return false; }
+        if (long.TryParse(SizeMinFilter.Text, out var sizeMin) && long.TryParse(SizeMaxFilter.Text, out var sizeMax) && sizeMin > sizeMax)
+        { TelegramFilesStatus.Text = "O tamanho mínimo não pode ser maior que o máximo."; return false; }
+        if (!string.IsNullOrWhiteSpace(PartsMinFilter.Text) && (!int.TryParse(PartsMinFilter.Text, out var minParts) || minParts < 1))
+        { TelegramFilesStatus.Text = "O número mínimo de partes deve ser um inteiro maior que zero."; return false; }
+        if (!string.IsNullOrWhiteSpace(PartsMaxFilter.Text) && (!int.TryParse(PartsMaxFilter.Text, out var maxParts) || maxParts < 1))
+        { TelegramFilesStatus.Text = "O número máximo de partes deve ser um inteiro maior que zero."; return false; }
+        if (int.TryParse(PartsMinFilter.Text, out var partsMin) && int.TryParse(PartsMaxFilter.Text, out var partsMax) && partsMin > partsMax)
+        { TelegramFilesStatus.Text = "O número mínimo de partes não pode ser maior que o máximo."; return false; }
+        if (DateFromFilter.SelectedDate is not null && DateToFilter.SelectedDate is not null && DateFromFilter.SelectedDate.Value.Date > DateToFilter.SelectedDate.Value.Date)
+        { TelegramFilesStatus.Text = "A data inicial não pode ser posterior à data final."; return false; }
+        return true;
+    }
 
-        FilterCount.Text = activeRules.Count == 0 ? "" : $"({activeRules.Count})";
-        FilterPanel.IsVisible = false;
-        StatusText.Text = activeRules.Count == 0
-            ? "Filtros limpos. Nenhum serviço conectado."
-            : $"Filtros configurados: {string.Join(", ", activeRules)}. Conecte um serviço para aplicá-los aos arquivos.";
+    private int GetActiveFilterCount()
+    {
+        var count = 0;
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text)) count++;
+        if (!string.IsNullOrWhiteSpace(SizeMinFilter.Text) || !string.IsNullOrWhiteSpace(SizeMaxFilter.Text)) count++;
+        if (DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null) count++;
+        if (!string.IsNullOrWhiteSpace(ExtensionFilter.Text)) count++;
+        if (ServiceFilter.SelectedIndex > 0) count++;
+        if (CredentialFilter.SelectedIndex > 0) count++;
+        if (FavoritesFilter.SelectedIndex > 0) count++;
+        if (TypeFilter.SelectedIndex > 0) count++;
+        if (HashFilter.SelectedIndex > 0) count++;
+        if (!string.IsNullOrWhiteSpace(PartsMinFilter.Text) || !string.IsNullOrWhiteSpace(PartsMaxFilter.Text)) count++;
+        return count;
+    }
+
+    private void ApplyCurrentFilters()
+    {
+        if (SearchBox is null || _loadedCloudFiles is null) return;
+        var search = SearchBox.Text?.Trim();
+        var hasSizeMin = long.TryParse(SizeMinFilter.Text, out var sizeMin);
+        var hasSizeMax = long.TryParse(SizeMaxFilter.Text, out var sizeMax);
+        var hasPartsMin = int.TryParse(PartsMinFilter.Text, out var partsMin);
+        var hasPartsMax = int.TryParse(PartsMaxFilter.Text, out var partsMax);
+        var extensions = (ExtensionFilter.Text ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => value.StartsWith('.') ? value : "." + value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool PassRule(bool active, bool matches, ToggleSwitch mode) => !active || (mode.IsChecked == false ? !matches : matches);
+
+        var filtered = _loadedCloudFiles.Where(file =>
+        {
+            var nameActive = !string.IsNullOrWhiteSpace(search);
+            if (!PassRule(nameActive, nameActive && file.DisplayName.Contains(search ?? "", StringComparison.OrdinalIgnoreCase), NameRuleMode)) return false;
+            var sizeActive = hasSizeMin || hasSizeMax;
+            if (!PassRule(sizeActive, (!hasSizeMin || file.SizeBytes >= sizeMin) && (!hasSizeMax || file.SizeBytes <= sizeMax), SizeRuleMode)) return false;
+            var dateActive = DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null;
+            var itemDate = file.MessageDate.Date;
+            var dateMatches = (DateFromFilter.SelectedDate is null || itemDate >= DateFromFilter.SelectedDate.Value.Date)
+                && (DateToFilter.SelectedDate is null || itemDate <= DateToFilter.SelectedDate.Value.Date);
+            if (!PassRule(dateActive, dateMatches, DateRuleMode)) return false;
+            if (!PassRule(extensions.Count > 0, extensions.Contains(Path.GetExtension(file.DisplayName)), ExtensionRuleMode)) return false;
+            if (!PassRule(ServiceFilter.SelectedIndex > 0, ServiceFilter.SelectedIndex == 1, ServiceRuleMode)) return false;
+            if (!PassRule(CredentialFilter.SelectedIndex > 0, CredentialFilter.SelectedIndex == 1 && _telegramClient?.User is not null, CredentialRuleMode)) return false;
+            var favoriteMatch = FavoritesFilter.SelectedIndex switch { 1 => file.IsFavorite, 2 => !file.IsFavorite, _ => true };
+            if (!PassRule(FavoritesFilter.SelectedIndex > 0, favoriteMatch, FavoritesRuleMode)) return false;
+            var typeMatch = TypeFilter.SelectedIndex switch { 1 => !file.IsFolder, 2 => file.IsFolder, _ => true };
+            if (!PassRule(TypeFilter.SelectedIndex > 0, typeMatch, TypeRuleMode)) return false;
+            var hashMatch = HashFilter.SelectedIndex switch { 1 => file.HasSavedHash, 2 => !file.HasSavedHash, _ => true };
+            if (!PassRule(HashFilter.SelectedIndex > 0, hashMatch, HashRuleMode)) return false;
+            var partCount = file.IsSplitFile ? file.ExpectedPartCount : 1;
+            if (!PassRule(hasPartsMin || hasPartsMax, (!hasPartsMin || partCount >= partsMin) && (!hasPartsMax || partCount <= partsMax), PartsRuleMode)) return false;
+            return true;
+        }).ToList();
+
+        CloudFiles.Clear();
+        foreach (var file in filtered) CloudFiles.Add(file);
+        var activeCount = GetActiveFilterCount();
+        FilterCount.Text = activeCount == 0 ? "" : $"({activeCount})";
+        EmptyFilesState.IsVisible = CloudFiles.Count == 0;
+        CloudFilesContainer.IsVisible = CloudFiles.Count > 0;
+        if (CloudFiles.Count == 0)
+        {
+            FilesEmptyTitle.Text = _loadedCloudFiles.Count == 0 ? "Nenhum arquivo ou pasta encontrado" : "Nenhum item corresponde aos filtros";
+            FilesEmptyDescription.Text = _loadedCloudFiles.Count == 0
+                ? "Conecte um serviço e clique em Atualizar para carregar arquivos."
+                : "Altere os critérios ou clique em Limpar filtros para voltar a ver todos os itens carregados.";
+        }
+        if (activeCount > 0) TelegramFilesStatus.Text = $"{CloudFiles.Count} de {_loadedCloudFiles.Count} item(ns) correspondem aos filtros.";
     }
 
     private void ClearFilters_Click(object? sender, RoutedEventArgs e)
     {
         SearchBox.Text = "";
-        SizeMinFilter.Text = "";
-        SizeMaxFilter.Text = "";
-        DateFromFilter.SelectedDate = null;
-        DateToFilter.SelectedDate = null;
+        SizeMinFilter.Text = ""; SizeMaxFilter.Text = "";
+        DateFromFilter.SelectedDate = null; DateToFilter.SelectedDate = null;
         ExtensionFilter.Text = "";
-        ServiceFilter.SelectedIndex = 0;
-        CredentialFilter.SelectedIndex = 0;
-        FavoritesFilter.SelectedIndex = 0;
-        TypeFilter.SelectedIndex = 0;
-
-        NameRuleMode.SelectedIndex = 0;
-        SizeRuleMode.SelectedIndex = 0;
-        DateRuleMode.SelectedIndex = 0;
-        ExtensionRuleMode.SelectedIndex = 0;
-        ServiceRuleMode.SelectedIndex = 0;
-        CredentialRuleMode.SelectedIndex = 0;
-        FavoritesRuleMode.SelectedIndex = 0;
-        TypeRuleMode.SelectedIndex = 0;
-
-        FilterCount.Text = "";
-        StatusText.Text = "Filtros limpos. Nenhum serviço conectado.";
+        ServiceFilter.SelectedIndex = 0; CredentialFilter.SelectedIndex = 0;
+        FavoritesFilter.SelectedIndex = 0; TypeFilter.SelectedIndex = 0; HashFilter.SelectedIndex = 0;
+        PartsMinFilter.Text = ""; PartsMaxFilter.Text = "";
+        NameRuleMode.IsChecked = true; SizeRuleMode.IsChecked = true; DateRuleMode.IsChecked = true;
+        ExtensionRuleMode.IsChecked = true; ServiceRuleMode.IsChecked = true; CredentialRuleMode.IsChecked = true;
+        FavoritesRuleMode.IsChecked = true; TypeRuleMode.IsChecked = true; HashRuleMode.IsChecked = true; PartsRuleMode.IsChecked = true;
+        ApplyCurrentFilters();
+        TelegramFilesStatus.Text = "Filtros limpos.";
     }
-
-    private static string RuleMode(ComboBox selector) =>
-        selector.SelectedIndex == 1 ? "Excluir" : "Incluir";
 
     private void AddConnection_Click(object? sender, RoutedEventArgs e)
     {
