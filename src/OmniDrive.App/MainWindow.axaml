@@ -39,21 +39,6 @@
             <StackPanel Spacing="4"><TextBlock x:Name="AreaTitle" Text="Drive na nuvem" FontSize="25" FontWeight="Bold"/><TextBlock Text="Arquivos e pastas dos serviços conectados." Classes="muted" FontSize="12"/></StackPanel>
             <TextBox x:Name="SearchBox" Grid.Column="1" Classes="search" Width="420" Watermark="Buscar por nome..." TextChanged="Search_TextChanged" VerticalAlignment="Center" Margin="16,0,8,0"/>
             <Button Grid.Column="2" Classes="ghost" Click="ToggleFilters_Click" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="☷" FontSize="16"/><TextBlock Text="Filtros"/><TextBlock x:Name="FilterCount" Text="" Foreground="#D6A8FF"/></StackPanel></Button>
-            <Border x:Name="FilterPanel" Grid.Row="1" Grid.ColumnSpan="3" Classes="panel" Padding="14" IsVisible="False">
-              <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
-                  <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5"><TextBlock Text="Nome" FontSize="11" Classes="muted"/><ComboBox x:Name="NameRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox><TextBlock Text="Use a pesquisa acima" FontSize="10" Classes="muted"/></StackPanel>
-                  <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5"><TextBlock Text="Tamanho (bytes)" FontSize="11" Classes="muted"/><Grid ColumnDefinitions="*,*" ColumnSpacing="6"><TextBox x:Name="SizeMinFilter" Watermark="Mínimo"/><TextBox x:Name="SizeMaxFilter" Watermark="Máximo" Grid.Column="1"/></Grid><ComboBox x:Name="SizeRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="0" Grid.Column="2" Spacing="5"><TextBlock Text="Data de upload/modificação" FontSize="11" Classes="muted"/><Grid ColumnDefinitions="*,*" ColumnSpacing="6"><DatePicker x:Name="DateFromFilter"/><DatePicker x:Name="DateToFilter" Grid.Column="1"/></Grid><ComboBox x:Name="DateRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="0" Grid.Column="3" Spacing="5"><TextBlock Text="Extensão" FontSize="11" Classes="muted"/><TextBox x:Name="ExtensionFilter" Watermark="Ex.: .pdf, .png"/><ComboBox x:Name="ExtensionRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5"><TextBlock Text="Serviço" FontSize="11" Classes="muted"/><ComboBox x:Name="ServiceFilter" SelectedIndex="0"><ComboBoxItem Content="Todos os serviços"/><ComboBoxItem Content="Telegram"/><ComboBoxItem Content="Outro serviço integrado"/></ComboBox><ComboBox x:Name="ServiceRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5"><TextBlock Text="Credencial / conta" FontSize="11" Classes="muted"/><ComboBox x:Name="CredentialFilter" SelectedIndex="0"><ComboBoxItem Content="Todas as contas"/><ComboBoxItem Content="Selecionar conta conectada"/></ComboBox><ComboBox x:Name="CredentialRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="2" Spacing="5"><TextBlock Text="Favoritos" FontSize="11" Classes="muted"/><ComboBox x:Name="FavoritesFilter" SelectedIndex="0"><ComboBoxItem Content="Todos os itens"/><ComboBoxItem Content="Somente favoritos"/></ComboBox><ComboBox x:Name="FavoritesRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="3" Spacing="5"><TextBlock Text="Tipo" FontSize="11" Classes="muted"/><ComboBox x:Name="TypeFilter" SelectedIndex="0"><ComboBoxItem Content="Arquivos e pastas"/><ComboBoxItem Content="Somente arquivos"/><ComboBoxItem Content="Somente pastas"/></ComboBox><ComboBox x:Name="TypeRuleMode" SelectedIndex="0"><ComboBoxItem Content="Incluir"/><ComboBoxItem Content="Excluir"/></ComboBox></StackPanel>
-                </Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="ClearFilters_Click" Content="Limpar filtros"/><Button Classes="action" Click="ApplyFilters_Click" Content="Aplicar filtros"/></StackPanel>
-              </StackPanel>
-            </Border>
             <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" Margin="0,2,0,8">
               <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                 <Button x:Name="BreadcrumbPrevious" Classes="ghost" Padding="8,7" Content="Pasta anterior" Click="BreadcrumbPrevious_Click" IsVisible="False" ToolTip.Tip="Voltar para a pasta anterior"/>
@@ -333,6 +318,134 @@
         <TextBlock x:Name="TransferDetailPart" Text="Parte: —" Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
         <TextBlock Text="Clique fora deste painel para fechar." Classes="muted" FontSize="10"/>
       </StackPanel>
+    </Border>
+  </Grid>
+  <Grid x:Name="FilterModalOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#B30A0810" ZIndex="30" PointerPressed="FilterModalOverlay_PointerPressed">
+    <Border x:Name="FilterModalCard" Classes="panel" Width="1000" MaxHeight="780" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="FilterModalCard_PointerPressed">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="5">
+            <TextBlock Text="Filtros avançados" FontSize="22" FontWeight="Bold"/>
+            <TextBlock Text="Combine critérios. Ativado = incluir correspondências; desativado = excluir correspondências." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="×" Click="CloseFilters_Click" ToolTip.Tip="Fechar filtros"/>
+        </Grid>
+        <ScrollViewer Grid.Row="1" MaxHeight="600" VerticalScrollBarVisibility="Auto">
+          <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="14">
+            <Border Grid.Row="0" Grid.Column="0" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Nome" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="Usa o texto digitado na barra de pesquisa acima." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="NameRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="1" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Tamanho (bytes)" FontSize="14" FontWeight="SemiBold"/>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <TextBox x:Name="SizeMinFilter" Watermark="Mínimo"/>
+                  <TextBox x:Name="SizeMaxFilter" Grid.Column="1" Watermark="Máximo"/>
+                </Grid>
+                <ToggleSwitch x:Name="SizeRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="0" Grid.Column="2" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Data de upload" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="Intervalo de datas; usa a data da mensagem no Telegram." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                <DatePicker x:Name="DateFromFilter"/>
+                <DatePicker x:Name="DateToFilter"/>
+                <ToggleSwitch x:Name="DateRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Extensão" FontSize="14" FontWeight="SemiBold"/>
+                <TextBox x:Name="ExtensionFilter" Watermark="Ex.: .pdf, .png, .zip"/>
+                <TextBlock Text="Separe várias extensões por vírgula." Classes="muted" FontSize="11"/>
+                <ToggleSwitch x:Name="ExtensionRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="1" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Serviço" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="ServiceFilter" SelectedIndex="0">
+                  <ComboBoxItem Content="Todos os serviços"/>
+                  <ComboBoxItem Content="Telegram"/>
+                  <ComboBoxItem Content="Outro serviço integrado"/>
+                </ComboBox>
+                <ToggleSwitch x:Name="ServiceRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Credencial / conta" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="CredentialFilter" SelectedIndex="0">
+                  <ComboBoxItem Content="Todas as contas"/>
+                  <ComboBoxItem Content="Conta Telegram conectada"/>
+                </ComboBox>
+                <ToggleSwitch x:Name="CredentialRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="2" Grid.Column="0" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Favoritos" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="FavoritesFilter" SelectedIndex="0">
+                  <ComboBoxItem Content="Todos os itens"/>
+                  <ComboBoxItem Content="Somente favoritos"/>
+                  <ComboBoxItem Content="Não favoritos"/>
+                </ComboBox>
+                <ToggleSwitch x:Name="FavoritesRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+                <TextBlock Text="Depende do suporte do serviço de origem." Classes="muted" FontSize="10" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="2" Grid.Column="1" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Tipo" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="TypeFilter" SelectedIndex="0">
+                  <ComboBoxItem Content="Arquivos e pastas"/>
+                  <ComboBoxItem Content="Somente arquivos"/>
+                  <ComboBoxItem Content="Somente pastas"/>
+                </ComboBox>
+                <ToggleSwitch x:Name="TypeRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="2" Grid.Column="2" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Hash salvo" FontSize="14" FontWeight="SemiBold"/>
+                <ComboBox x:Name="HashFilter" SelectedIndex="0">
+                  <ComboBoxItem Content="Todos os itens"/>
+                  <ComboBoxItem Content="Possui hash salvo"/>
+                  <ComboBoxItem Content="Sem hash salvo"/>
+                </ComboBox>
+                <ToggleSwitch x:Name="HashRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="3" Grid.Column="0" Classes="panel" Padding="14">
+              <StackPanel Spacing="9">
+                <TextBlock Text="Número de partes" FontSize="14" FontWeight="SemiBold"/>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <TextBox x:Name="PartsMinFilter" Watermark="Mínimo"/>
+                  <TextBox x:Name="PartsMaxFilter" Grid.Column="1" Watermark="Máximo"/>
+                </Grid>
+                <TextBlock Text="Arquivos não divididos contam como 1 parte." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="PartsRuleMode" IsChecked="True" OnContent="Incluir" OffContent="Excluir"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Classes="panel" Padding="14">
+              <StackPanel Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Como os filtros são combinados" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="As regras ativas são combinadas entre si. Use Incluir para manter os itens que correspondem ao critério ou Excluir para removê-los da visualização. Limpar filtros restaura todos os itens carregados." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Classes="ghost" Click="ClearFilters_Click" Content="Limpar filtros"/>
+          <Button Classes="ghost" Click="CloseFilters_Click" Content="Cancelar"/>
+          <Button Classes="action" Click="ApplyFilters_Click" Content="Aplicar filtros"/>
+        </StackPanel>
+      </Grid>
     </Border>
   </Grid>
   </Grid>
