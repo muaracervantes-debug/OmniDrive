@@ -792,12 +792,6 @@ public partial class MainWindow : Window
 
     private async Task ChooseUploadFilesAsync()
     {
-        if (_telegramClient?.User is null)
-        {
-            TelegramFilesStatus.Text = "Conecte uma credencial de serviço compatível antes de enviar arquivos.";
-            return;
-        }
-
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Selecione um ou mais arquivos para upload",
@@ -826,12 +820,6 @@ public partial class MainWindow : Window
 
     private async Task ChooseUploadFolderAsync()
     {
-        if (_telegramClient?.User is null)
-        {
-            TelegramFilesStatus.Text = "Conecte uma credencial de serviço compatível antes de enviar uma pasta.";
-            return;
-        }
-
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Selecione uma pasta para compactar e enviar",
@@ -860,7 +848,9 @@ public partial class MainWindow : Window
     {
         UploadItemsPanel.Children.Clear();
         UploadModalTitle.Text = _uploadIsFolder ? "Upload de pasta" : $"Upload de arquivos ({_pendingUploads.Count})";
-        UploadModalStatus.Text = "O destino será a conversa/pasta aberta no Drive; na raiz, use a conversa “Mensagens salvas”.";
+        UploadModalStatus.Text = _telegramClient?.User is null
+            ? "Arquivos selecionados. Para iniciar o envio, conecte o Telegram em Configurações → Conectar serviços."
+            : "O destino será a conversa/pasta aberta no Drive; na raiz, use a conversa “Mensagens salvas”.";
         var credentials = new[] { "Telegram" }.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
         foreach (var entry in _pendingUploads)
         {
