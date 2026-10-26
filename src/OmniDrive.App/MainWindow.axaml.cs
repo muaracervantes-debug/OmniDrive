@@ -919,6 +919,7 @@ public partial class MainWindow : Window
 
         var button = sender as Button;
         if (button is not null) button.IsEnabled = false;
+        var uploadFailed = false;
         try
         {
             foreach (var entry in _pendingUploads.ToList())
@@ -972,6 +973,7 @@ public partial class MainWindow : Window
                 }
                 catch (Exception ex)
                 {
+                    uploadFailed = true;
                     UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {ex.Message}";
                     TelegramFilesStatus.Text = UploadModalStatus.Text;
                     break;
@@ -984,9 +986,18 @@ public partial class MainWindow : Window
                     }
                 }
             }
-            await LoadTelegramFilesAsync();
-            UploadModalOverlay.IsVisible = false;
-            _pendingUploads.Clear();
+            if (!uploadFailed)
+            {
+                await LoadTelegramFilesAsync();
+                UploadModalStatus.Text = "Upload concluído.";
+                UploadModalOverlay.IsVisible = false;
+                _pendingUploads.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            UploadModalStatus.Text = $"Não foi possível concluir o upload: {ex.Message}";
+            TelegramFilesStatus.Text = UploadModalStatus.Text;
         }
         finally
         {
