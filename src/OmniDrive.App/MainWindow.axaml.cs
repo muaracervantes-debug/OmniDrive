@@ -949,8 +949,9 @@ public partial class MainWindow : Window
 
                     var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
                     UploadModalStatus.Text = $"Enviando {uploadName} para o Telegram...";
-                    var uploadedFile = await _telegramClient.UploadFile(sourcePath, progress =>
+                    var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, (transmitted, totalSize) =>
                     {
+                        var progress = totalSize > 0 ? (double)transmitted / totalSize : 0d;
                         Dispatcher.UIThread.Post(() => UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}");
                     });
                     var destination = _folderPath.LastOrDefault()?.Peer ?? new InputPeerSelf();
