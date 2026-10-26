@@ -320,6 +320,27 @@
       </StackPanel>
     </Border>
   </Grid>
+  <Grid x:Name="UploadModalOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#B30A0810" ZIndex="40" PointerPressed="UploadModalOverlay_PointerPressed">
+    <Border x:Name="UploadModalCard" Classes="panel" Width="900" MaxHeight="780" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="UploadModalCard_PointerPressed">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="5">
+            <TextBlock x:Name="UploadModalTitle" Text="Upload de arquivos" FontSize="22" FontWeight="Bold"/>
+            <TextBlock Text="Configure individualmente o nome, a credencial, a verificação de hash e a compactação de cada arquivo." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="×" Click="CancelUpload_Click"/>
+        </Grid>
+        <ScrollViewer Grid.Row="1" MaxHeight="580" VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="UploadItemsPanel" Spacing="12"/>
+        </ScrollViewer>
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+          <TextBlock x:Name="UploadModalStatus" Text="" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          <Button Grid.Column="1" Classes="ghost" Click="CancelUpload_Click" Content="Cancelar"/>
+          <Button Grid.Column="2" Classes="action" Click="StartUpload_Click" Content="Upload"/>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
   <Grid x:Name="FilterModalOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#B30A0810" ZIndex="30" PointerPressed="FilterModalOverlay_PointerPressed">
     <Border x:Name="FilterModalCard" Classes="panel" Width="1000" MaxHeight="780" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="FilterModalCard_PointerPressed">
       <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
