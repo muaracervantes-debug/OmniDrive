@@ -1005,7 +1005,6 @@ public partial class MainWindow : Window
                     queueItem.Status = "Concluído";
                     queueItem.PartDescription = "Concluído";
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
-                    _completedTransfers++;
                     UpdateTransferQueueDisplay();
                     if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                     UploadModalStatus.Text = $"Upload concluído: {uploadName}";
@@ -1842,9 +1841,8 @@ public partial class MainWindow : Window
     {
         if (TransferQueueCount is not null)
         {
-            var completed = TransferQueue.Count(item => item.Status == "Concluído") + _completedTransfers;
-            var total = TransferQueue.Count + _completedTransfers;
-            TransferQueueCount.Text = $"{completed} / {total}";
+            var completed = TransferQueue.Count(item => item.Status == "Concluído");
+            TransferQueueCount.Text = $"{completed} / {TransferQueue.Count}";
         }
         if (TransferQueueEmpty is not null)
             TransferQueueEmpty.IsVisible = TransferQueue.Count == 0;
