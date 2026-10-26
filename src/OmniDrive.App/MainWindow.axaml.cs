@@ -6,6 +6,8 @@ using System.Collections.ObjectModel;
 using Avalonia.Input;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.IO.Compression;
+using System.Security.Cryptography;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -23,6 +25,8 @@ public partial class MainWindow : Window
     private bool _detailsVisible = true;
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
+    private readonly List<UploadEntry> _pendingUploads = new();
+    private bool _uploadIsFolder;
     private readonly Dictionary<string, string?> _folderParents = new(StringComparer.Ordinal);
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
@@ -770,19 +774,247 @@ public partial class MainWindow : Window
         });
         menu.Items.Add(new MenuItem
         {
-            Header = "Enviar arquivo",
-            Command = new RelayUiCommand(() => ShowProviderRequired("enviar um arquivo"))
+            Header = "Upload de arquivo",
+            Command = new RelayUiCommand(() => _ = ChooseUploadFilesAsync())
         });
         menu.Items.Add(new MenuItem
         {
-            Header = "Enviar pasta",
-            Command = new RelayUiCommand(() => ShowProviderRequired("enviar uma pasta"))
+            Header = "Upload de pasta",
+            Command = new RelayUiCommand(() => _ = ChooseUploadFolderAsync())
         });
 
         menu.PlacementTarget = button;
         menu.Placement = PlacementMode.Bottom;
         button.ContextMenu = menu;
         menu.Open(button);
+    }
+
+    private async Task ChooseUploadFilesAsync()
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte uma credencial de serviço compatível antes de enviar arquivos.";
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Selecione um ou mais arquivos para upload",
+            AllowMultiple = true
+        });
+        if (files.Count == 0) return;
+
+        _pendingUploads.Clear();
+        _uploadIsFolder = false;
+        bool lastZip = false;
+        bool lastHash = VerifyUploadHash.IsChecked == true;
+        foreach (var file in files)
+        {
+            _pendingUploads.Add(new UploadEntry
+            {
+                SourcePath = file.TryGetLocalPath() ?? string.Empty,
+                OriginalName = Path.GetFileName(file.Name),
+                UploadName = Path.GetFileName(file.Name),
+                Credential = "Telegram",
+                VerifyHash = lastHash,
+                Compress = lastZip
+            });
+        }
+        BuildUploadModal();
+    }
+
+    private async Task ChooseUploadFolderAsync()
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte uma credencial de serviço compatível antes de enviar uma pasta.";
+            return;
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Selecione uma pasta para compactar e enviar",
+            AllowMultiple = false
+        });
+        if (folders.Count == 0) return;
+        var path = folders[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        _pendingUploads.Clear();
+        _uploadIsFolder = true;
+        _pendingUploads.Add(new UploadEntry
+        {
+            SourcePath = path,
+            OriginalName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+            UploadName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) + ".zip",
+            Credential = "Telegram",
+            VerifyHash = VerifyUploadHash.IsChecked == true,
+            Compress = true,
+            IsFolder = true
+        });
+        BuildUploadModal();
+    }
+
+    private void BuildUploadModal()
+    {
+        UploadItemsPanel.Children.Clear();
+        UploadModalTitle.Text = _uploadIsFolder ? "Upload de pasta" : $"Upload de arquivos ({_pendingUploads.Count})";
+        UploadModalStatus.Text = "O destino será a conversa/pasta aberta no Drive; na raiz, use a conversa “Mensagens salvas”.";
+        var credentials = new[] { "Telegram" }.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+        foreach (var entry in _pendingUploads)
+        {
+            var card = new Border { Classes = { "panel" }, Padding = new Thickness(14) };
+            var fields = new StackPanel { Spacing = 9 };
+            fields.Children.Add(new TextBlock { Text = entry.IsFolder ? $"Pasta: {entry.OriginalName}" : $"Arquivo: {entry.OriginalName}", FontWeight = Avalonia.Media.FontWeight.SemiBold, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+            var nameBox = new TextBox { Text = entry.UploadName, Watermark = "Nome no destino" };
+            nameBox.TextChanged += (_, _) => entry.UploadName = nameBox.Text?.Trim() ?? "";
+            fields.Children.Add(new TextBlock { Text = "Nome no destino", Classes = { "muted" }, FontSize = 11 });
+            fields.Children.Add(nameBox);
+            var credentialBox = new ComboBox { ItemsSource = credentials, SelectedItem = entry.Credential, MinWidth = 180 };
+            credentialBox.SelectionChanged += (_, _) => entry.Credential = credentialBox.SelectedItem?.ToString() ?? "Telegram";
+            fields.Children.Add(new TextBlock { Text = "Credencial de destino", Classes = { "muted" }, FontSize = 11 });
+            fields.Children.Add(credentialBox);
+            var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
+            var hashCheck = new CheckBox { Content = "Verificar hash", IsChecked = entry.VerifyHash };
+            hashCheck.IsCheckedChanged += (_, _) => entry.VerifyHash = hashCheck.IsChecked == true;
+            options.Children.Add(hashCheck);
+            if (!entry.IsFolder)
+            {
+                var zipCheck = new CheckBox { Content = "Compactar em ZIP", IsChecked = entry.Compress };
+                zipCheck.IsCheckedChanged += (_, _) => entry.Compress = zipCheck.IsChecked == true;
+                options.Children.Add(zipCheck);
+            }
+            else
+            {
+                options.Children.Add(new TextBlock { Text = "A pasta será compactada automaticamente em ZIP.", Classes = { "muted" }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 });
+            }
+            fields.Children.Add(options);
+            card.Child = fields;
+            UploadItemsPanel.Children.Add(card);
+        }
+        UploadModalOverlay.IsVisible = true;
+    }
+
+    private void UploadModalOverlay_PointerPressed(object? sender, PointerPressedEventArgs e) => UploadModalOverlay.IsVisible = false;
+    private void UploadModalCard_PointerPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
+    private void CancelUpload_Click(object? sender, RoutedEventArgs e)
+    {
+        UploadModalOverlay.IsVisible = false;
+        _pendingUploads.Clear();
+    }
+
+    private async void StartUpload_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_telegramClient?.User is null || _pendingUploads.Count == 0)
+        {
+            UploadModalStatus.Text = "Não há arquivos prontos para enviar ou a credencial não está conectada.";
+            return;
+        }
+        if (_pendingUploads.Any(entry => string.IsNullOrWhiteSpace(entry.UploadName)))
+        {
+            UploadModalStatus.Text = "Informe um nome válido para cada arquivo.";
+            return;
+        }
+
+        var button = sender as Button;
+        if (button is not null) button.IsEnabled = false;
+        try
+        {
+            foreach (var entry in _pendingUploads.ToList())
+            {
+                string? tempPath = null;
+                try
+                {
+                    var sourcePath = entry.SourcePath;
+                    var uploadName = entry.UploadName;
+                    if (entry.IsFolder || entry.Compress)
+                    {
+                        tempPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_{Guid.NewGuid():N}.zip");
+                        if (entry.IsFolder)
+                        {
+                            ZipFile.CreateFromDirectory(sourcePath, tempPath, CompressionLevel.Optimal, includeBaseDirectory: true);
+                        }
+                        else
+                        {
+                            using var archive = ZipFile.Open(tempPath, ZipArchiveMode.Create);
+                            archive.CreateEntryFromFile(sourcePath, Path.GetFileName(sourcePath), CompressionLevel.Optimal);
+                        }
+                        sourcePath = tempPath;
+                        if (!uploadName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) uploadName += ".zip";
+                    }
+
+                    if (!File.Exists(sourcePath))
+                        throw new FileNotFoundException("O arquivo local não foi encontrado.", sourcePath);
+
+                    var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
+                    UploadModalStatus.Text = $"Enviando {uploadName} para o Telegram...";
+                    var uploadedFile = await _telegramClient.UploadFile(sourcePath, progress =>
+                    {
+                        Dispatcher.UIThread.Post(() => UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}");
+                    });
+                    var destination = _folderPath.LastOrDefault()?.Peer ?? new InputPeerSelf();
+                    var mimeType = GetMimeType(uploadName);
+                    await _telegramClient.Messages_SendMedia(destination, string.Empty, new InputMediaUploadedDocument
+                    {
+                        file = uploadedFile,
+                        mime_type = mimeType,
+                        attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = uploadName } }
+                    });
+                    if (entry.VerifyHash)
+                    {
+                        var finalHash = await ComputeSha256Async(sourcePath);
+                        if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
+                            throw new IOException("A verificação local do hash falhou.");
+                    }
+                    UploadModalStatus.Text = $"Upload concluído: {uploadName}";
+                }
+                catch (Exception ex)
+                {
+                    UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {ex.Message}";
+                    TelegramFilesStatus.Text = UploadModalStatus.Text;
+                    break;
+                }
+                finally
+                {
+                    if (tempPath is not null)
+                    {
+                        try { File.Delete(tempPath); } catch { }
+                    }
+                }
+            }
+            await LoadTelegramFilesAsync();
+            UploadModalOverlay.IsVisible = false;
+            _pendingUploads.Clear();
+        }
+        finally
+        {
+            if (button is not null) button.IsEnabled = true;
+        }
+    }
+
+    private static async Task<string> ComputeSha256Async(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        var hash = await SHA256.HashDataAsync(stream);
+        return Convert.ToHexString(hash);
+    }
+
+    private static string GetMimeType(string fileName) => Path.GetExtension(fileName).ToLowerInvariant() switch
+    {
+        ".pdf" => "application/pdf", ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg",
+        ".zip" => "application/zip", ".txt" => "text/plain", ".json" => "application/json",
+        ".mp4" => "video/mp4", ".mp3" => "audio/mpeg", _ => "application/octet-stream"
+    };
+
+    private sealed class UploadEntry
+    {
+        public string SourcePath { get; init; } = string.Empty;
+        public string OriginalName { get; init; } = string.Empty;
+        public string UploadName { get; set; } = string.Empty;
+        public string Credential { get; set; } = "Telegram";
+        public bool VerifyHash { get; set; }
+        public bool Compress { get; set; }
+        public bool IsFolder { get; init; }
     }
 
     private void ShowProviderRequired(string operation) =>
