@@ -73,6 +73,7 @@ public partial class MainWindow : Window
         SearchBox = this.FindControl<TextBox>(nameof(SearchBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SearchBox");
         FilterCount = this.FindControl<TextBlock>(nameof(FilterCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterCount");
         FilterModalOverlay = this.FindControl<Grid>(nameof(FilterModalOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilterModalOverlay");
+        NameFilter = this.FindControl<TextBox>(nameof(NameFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NameFilter");
         NameRuleMode = this.FindControl<ToggleSwitch>(nameof(NameRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NameRuleMode");
         SizeMinFilter = this.FindControl<TextBox>(nameof(SizeMinFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMinFilter");
         SizeMaxFilter = this.FindControl<TextBox>(nameof(SizeMaxFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SizeMaxFilter");
@@ -92,8 +93,7 @@ public partial class MainWindow : Window
         TypeRuleMode = this.FindControl<ToggleSwitch>(nameof(TypeRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TypeRuleMode");
         HashFilter = this.FindControl<ComboBox>(nameof(HashFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: HashFilter");
         HashRuleMode = this.FindControl<ToggleSwitch>(nameof(HashRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: HashRuleMode");
-        PartsMinFilter = this.FindControl<TextBox>(nameof(PartsMinFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsMinFilter");
-        PartsMaxFilter = this.FindControl<TextBox>(nameof(PartsMaxFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsMaxFilter");
+        PartsCountFilter = this.FindControl<TextBox>(nameof(PartsCountFilter)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsCountFilter");
         PartsRuleMode = this.FindControl<ToggleSwitch>(nameof(PartsRuleMode)) ?? throw new InvalidOperationException("Controle XAML não encontrado: PartsRuleMode");
         BreadcrumbPrevious = this.FindControl<Button>(nameof(BreadcrumbPrevious)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbPrevious");
         BreadcrumbSeparator = this.FindControl<TextBlock>(nameof(BreadcrumbSeparator)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbSeparator");
@@ -966,12 +966,8 @@ public partial class MainWindow : Window
         { TelegramFilesStatus.Text = "Informe um tamanho máximo válido em bytes."; return false; }
         if (long.TryParse(SizeMinFilter.Text, out var sizeMin) && long.TryParse(SizeMaxFilter.Text, out var sizeMax) && sizeMin > sizeMax)
         { TelegramFilesStatus.Text = "O tamanho mínimo não pode ser maior que o máximo."; return false; }
-        if (!string.IsNullOrWhiteSpace(PartsMinFilter.Text) && (!int.TryParse(PartsMinFilter.Text, out var minParts) || minParts < 1))
-        { TelegramFilesStatus.Text = "O número mínimo de partes deve ser um inteiro maior que zero."; return false; }
-        if (!string.IsNullOrWhiteSpace(PartsMaxFilter.Text) && (!int.TryParse(PartsMaxFilter.Text, out var maxParts) || maxParts < 1))
-        { TelegramFilesStatus.Text = "O número máximo de partes deve ser um inteiro maior que zero."; return false; }
-        if (int.TryParse(PartsMinFilter.Text, out var partsMin) && int.TryParse(PartsMaxFilter.Text, out var partsMax) && partsMin > partsMax)
-        { TelegramFilesStatus.Text = "O número mínimo de partes não pode ser maior que o máximo."; return false; }
+        if (!string.IsNullOrWhiteSpace(PartsCountFilter.Text) && (!int.TryParse(PartsCountFilter.Text, out var partCount) || partCount < 1))
+        { TelegramFilesStatus.Text = "O número de partes deve ser um inteiro maior que zero."; return false; }
         if (DateFromFilter.SelectedDate is not null && DateToFilter.SelectedDate is not null && DateFromFilter.SelectedDate.Value.Date > DateToFilter.SelectedDate.Value.Date)
         { TelegramFilesStatus.Text = "A data inicial não pode ser posterior à data final."; return false; }
         return true;
@@ -981,6 +977,7 @@ public partial class MainWindow : Window
     {
         var count = 0;
         if (!string.IsNullOrWhiteSpace(SearchBox.Text)) count++;
+        if (!string.IsNullOrWhiteSpace(NameFilter.Text)) count++;
         if (!string.IsNullOrWhiteSpace(SizeMinFilter.Text) || !string.IsNullOrWhiteSpace(SizeMaxFilter.Text)) count++;
         if (DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null) count++;
         if (!string.IsNullOrWhiteSpace(ExtensionFilter.Text)) count++;
@@ -989,7 +986,7 @@ public partial class MainWindow : Window
         if (FavoritesFilter.SelectedIndex > 0) count++;
         if (TypeFilter.SelectedIndex > 0) count++;
         if (HashFilter.SelectedIndex > 0) count++;
-        if (!string.IsNullOrWhiteSpace(PartsMinFilter.Text) || !string.IsNullOrWhiteSpace(PartsMaxFilter.Text)) count++;
+        if (!string.IsNullOrWhiteSpace(PartsCountFilter.Text)) count++;
         return count;
     }
 
@@ -997,18 +994,20 @@ public partial class MainWindow : Window
     {
         if (SearchBox is null || _loadedCloudFiles is null) return;
         var search = SearchBox.Text?.Trim();
+        var nameTerms = (NameFilter.Text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var hasSizeMin = long.TryParse(SizeMinFilter.Text, out var sizeMin);
         var hasSizeMax = long.TryParse(SizeMaxFilter.Text, out var sizeMax);
-        var hasPartsMin = int.TryParse(PartsMinFilter.Text, out var partsMin);
-        var hasPartsMax = int.TryParse(PartsMaxFilter.Text, out var partsMax);
+        var hasExactPartCount = int.TryParse(PartsCountFilter.Text, out var exactPartCount);
         var extensions = (ExtensionFilter.Text ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(value => value.StartsWith('.') ? value : "." + value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         bool PassRule(bool active, bool matches, ToggleSwitch mode) => !active || (mode.IsChecked == false ? !matches : matches);
 
         var filtered = _loadedCloudFiles.Where(file =>
         {
-            var nameActive = !string.IsNullOrWhiteSpace(search);
-            if (!PassRule(nameActive, nameActive && file.DisplayName.Contains(search ?? "", StringComparison.OrdinalIgnoreCase), NameRuleMode)) return false;
+            if (!string.IsNullOrWhiteSpace(search) && !file.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)) return false;
+            var nameActive = nameTerms.Length > 0;
+            var nameMatches = nameActive && nameTerms.Any(term => file.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            if (!PassRule(nameActive, nameMatches, NameRuleMode)) return false;
             var sizeActive = hasSizeMin || hasSizeMax;
             if (!PassRule(sizeActive, (!hasSizeMin || file.SizeBytes >= sizeMin) && (!hasSizeMax || file.SizeBytes <= sizeMax), SizeRuleMode)) return false;
             var dateActive = DateFromFilter.SelectedDate is not null || DateToFilter.SelectedDate is not null;
@@ -1026,7 +1025,7 @@ public partial class MainWindow : Window
             var hashMatch = HashFilter.SelectedIndex switch { 1 => file.HasSavedHash, 2 => !file.HasSavedHash, _ => true };
             if (!PassRule(HashFilter.SelectedIndex > 0, hashMatch, HashRuleMode)) return false;
             var partCount = file.IsSplitFile ? file.ExpectedPartCount : 1;
-            if (!PassRule(hasPartsMin || hasPartsMax, (!hasPartsMin || partCount >= partsMin) && (!hasPartsMax || partCount <= partsMax), PartsRuleMode)) return false;
+            if (!PassRule(hasExactPartCount, partCount == exactPartCount, PartsRuleMode)) return false;
             return true;
         }).ToList();
 
@@ -1049,12 +1048,13 @@ public partial class MainWindow : Window
     private void ClearFilters_Click(object? sender, RoutedEventArgs e)
     {
         SearchBox.Text = "";
+        NameFilter.Text = "";
         SizeMinFilter.Text = ""; SizeMaxFilter.Text = "";
         DateFromFilter.SelectedDate = null; DateToFilter.SelectedDate = null;
         ExtensionFilter.Text = "";
         ServiceFilter.SelectedIndex = 0; CredentialFilter.SelectedIndex = 0;
         FavoritesFilter.SelectedIndex = 0; TypeFilter.SelectedIndex = 0; HashFilter.SelectedIndex = 0;
-        PartsMinFilter.Text = ""; PartsMaxFilter.Text = "";
+        PartsCountFilter.Text = "";
         NameRuleMode.IsChecked = true; SizeRuleMode.IsChecked = true; DateRuleMode.IsChecked = true;
         ExtensionRuleMode.IsChecked = true; ServiceRuleMode.IsChecked = true; CredentialRuleMode.IsChecked = true;
         FavoritesRuleMode.IsChecked = true; TypeRuleMode.IsChecked = true; HashRuleMode.IsChecked = true; PartsRuleMode.IsChecked = true;
