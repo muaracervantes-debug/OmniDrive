@@ -384,7 +384,7 @@ public partial class MainWindow : Window
             foreach (var file in sorted)
                 CloudFiles.Add(file);
 
-            if (CloudFiles.Count == 0)
+            if (_loadedCloudFiles.Count == 0)
             {
                 FilesEmptyTitle.Text = currentFolder is null ? "Nenhum arquivo ou pasta encontrado" : "Esta pasta está vazia";
                 FilesEmptyDescription.Text = currentFolder is null
@@ -396,10 +396,8 @@ public partial class MainWindow : Window
                     ? $"Nenhum item encontrado. Pastas do OmniDrive detectadas: {foldersFound}."
                     : $"Pasta atual: {currentFolder.Name}. Nenhum item encontrado.";
             }
-            else
+            else if (GetActiveFilterCount() == 0)
             {
-                EmptyFilesState.IsVisible = false;
-                CloudFilesContainer.IsVisible = true;
                 TelegramFilesStatus.Text = currentFolder is null
                     ? $"{CloudFiles.Count} item(ns) na raiz · {foldersFound} chat(s) identificado(s) como pasta(s) do OmniDrive."
                     : $"{CloudFiles.Count} item(ns) em {currentFolder.Name}.";
