@@ -701,6 +701,19 @@ public partial class MainWindow : Window
             ShowTelegramFileOptions(file);
     }
 
+    private void SelectAllCheckBox_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (SelectAllCheckBox.IsChecked == true)
+        {
+            foreach (var item in CloudFilesList.Items.OfType<TelegramFileItem>())
+                CloudFilesList.SelectedItems.Add(item);
+        }
+        else
+        {
+            CloudFilesList.SelectedItems.Clear();
+        }
+    }
+
     private void ShowTelegramFileOptions(TelegramFileItem file)
     {
         var menu = new ContextMenu();
