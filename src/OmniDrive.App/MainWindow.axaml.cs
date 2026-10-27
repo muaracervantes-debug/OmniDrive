@@ -106,6 +106,8 @@ public partial class MainWindow : Window
         BreadcrumbCurrent = this.FindControl<Button>(nameof(BreadcrumbCurrent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: BreadcrumbCurrent");
         SelectionCount = this.FindControl<TextBlock>(nameof(SelectionCount)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectionCount");
         SelectAllCheckBox = this.FindControl<CheckBox>(nameof(SelectAllCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SelectAllCheckBox");
+        SelectAllCheckBox.Checked += SelectAllCheckBox_Changed;
+        SelectAllCheckBox.Unchecked += SelectAllCheckBox_Changed;
         EmptyFilesState = this.FindControl<Grid>(nameof(EmptyFilesState)) ?? throw new InvalidOperationException("Controle XAML não encontrado: EmptyFilesState");
         FilesEmptyTitle = this.FindControl<TextBlock>(nameof(FilesEmptyTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyTitle");
         FilesEmptyDescription = this.FindControl<TextBlock>(nameof(FilesEmptyDescription)) ?? throw new InvalidOperationException("Controle XAML não encontrado: FilesEmptyDescription");
