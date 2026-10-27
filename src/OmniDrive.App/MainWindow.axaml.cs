@@ -1780,6 +1780,14 @@ public partial class MainWindow : Window
                     var uploadName = entry.UploadName;
                     if (entry.IsFolder || entry.Compress)
                     {
+                        queueItem.ProgressLabel = entry.IsFolder ? "Calculando tamanho da pasta" : "Preparando compactação";
+                        UploadModalStatus.Text = queueItem.ProgressLabel;
+                        var estimatedBytes = entry.IsFolder
+                            ? await Task.Run(() => Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories).Sum(path => new FileInfo(path).Length))
+                            : new FileInfo(sourcePath).Length;
+                        var tempDrive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(Path.GetTempPath()))!);
+                        if (tempDrive.IsReady && estimatedBytes > 0 && tempDrive.AvailableFreeSpace < estimatedBytes)
+                            throw new IOException($"No space left on temporary drive. Needed about {FormatFileSize(estimatedBytes)}; available {FormatFileSize(tempDrive.AvailableFreeSpace)}.");
                         tempPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_{Guid.NewGuid():N}.zip");
                         if (entry.IsFolder)
                         {
