@@ -376,15 +376,18 @@ public partial class MainWindow : Window
                         if (string.IsNullOrWhiteSpace(fileName))
                             fileName = $"Telegram_documento_{message.ID}";
 
+                        var captionData = ParseTelegramCaption(message.message, fileName);
                         var date = message.date.ToLocalTime();
                         CloudFiles.Add(new TelegramFileItem(
-                            fileName,
+                            captionData.Name,
                             chatName,
                             FormatFileSize(document.size),
                             date.ToString("dd/MM/yyyy HH:mm"),
                             document.size,
                             message.ID,
-                            inputPeer));
+                            inputPeer,
+                            hasSavedHash: captionData.Hash is not null,
+                            savedHash: captionData.Hash));
                     }
                     scanned++;
                 }
@@ -431,6 +434,41 @@ public partial class MainWindow : Window
         }
     }
 
+    private static readonly Regex TelegramHashMarkerRegex = new(
+        @"_OG\[(?<hash>[0-9a-fA-F]{64})\]",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static (string Name, string? Hash) ParseTelegramCaption(string? caption, string fallbackName)
+    {
+        if (string.IsNullOrWhiteSpace(caption))
+            return (fallbackName, null);
+
+        var match = TelegramHashMarkerRegex.Match(caption);
+        if (!match.Success)
+            return (caption.Trim(), null);
+
+        var name = caption[..match.Index].TrimEnd();
+        if (string.IsNullOrWhiteSpace(name))
+            name = fallbackName;
+
+        return (name, match.Groups["hash"].Value.ToLowerInvariant());
+    }
+
+    private static string BuildTelegramCaption(string fileName, string? hash) =>
+        string.IsNullOrWhiteSpace(hash) ? fileName : $"{fileName} _OG[{hash}]";
+
+    private static string RenameTelegramCaption(string? existingCaption, string fallbackName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(existingCaption))
+            return newName;
+
+        var metadata = Regex.Match(
+            existingCaption,
+            @"\s+_OG\[.*$",
+            RegexOptions.CultureInvariant);
+        return metadata.Success ? newName + metadata.Value : newName;
+    }
+
     private static List<TelegramFileItem> GroupSplitFiles(IReadOnlyList<TelegramFileItem> files)
     {
         var result = new List<TelegramFileItem>();
@@ -438,16 +476,18 @@ public partial class MainWindow : Window
 
         foreach (var file in files)
         {
-            if (file.IsFolder || !TryParseSplitFileName(file.Name, out var parsed))
+            if (file.IsFolder
+                || string.IsNullOrWhiteSpace(file.SavedHash)
+                || !TryParseSplitFileName(file.Name, out var parsed))
             {
                 result.Add(file);
                 continue;
             }
 
-            if (!groups.TryGetValue(parsed.Uuid, out var group))
+            if (!groups.TryGetValue(file.SavedHash, out var group))
             {
                 group = new List<(TelegramFileItem File, SplitFileName Parsed)>();
-                groups[parsed.Uuid] = group;
+                groups[file.SavedHash] = group;
             }
             group.Add((file, parsed));
         }
@@ -496,7 +536,9 @@ public partial class MainWindow : Window
                 expectedPartCount: expectedTotal,
                 isIncomplete: incomplete,
                 displayName: displayName,
-                partsLabel: partsLabel));
+                partsLabel: partsLabel,
+                hasSavedHash: true,
+                savedHash: pair.Key));
         }
 
         return result;
@@ -795,8 +837,8 @@ public partial class MainWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = file.IsSplitFile
-                ? "O OmniDrive enviará novas partes com o mesmo UUID e numeração antes de excluir as antigas."
-                : "O Telegram não permite alterar diretamente o nome do documento. O OmniDrive enviará uma cópia renomeada e só depois tentará excluir a original.",
+                ? "A caption de cada parte será atualizada, preservando os metadados individuais. Os arquivos não serão baixados nem reenviados."
+                : "A caption da mensagem existente será atualizada. O arquivo não será baixado nem reenviado.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Foreground = Avalonia.Media.Brush.Parse("#F4F0FA")
         });
@@ -827,11 +869,9 @@ public partial class MainWindow : Window
         }
         if (!await ConfirmActionAsync(
                 "Confirmar renomeação",
-                $"Será enviado um novo arquivo chamado “{newName}”. A versão antiga só será excluída depois que todas as novas partes forem enviadas. Continuar?"))
+                $"A caption da mensagem será alterada para “{newName}”. Nenhum arquivo será reenviado. Continuar?"))
             return;
 
-        var temporaryFiles = new List<string>();
-        var uploadedAny = false;
         try
         {
             var sourceParts = new List<(InputPeer Peer, int MessageId, string SourceName, int PartNumber, int TotalParts)>();
@@ -845,67 +885,35 @@ public partial class MainWindow : Window
                 sourceParts.Add((file.Peer, file.MessageId, file.Name, 1, 1));
             }
 
-            var replacementMessagesSent = 0;
             for (var index = 0; index < sourceParts.Count; index++)
             {
                 var part = sourceParts[index];
                 var history = await _telegramClient.Messages_GetHistory(part.Peer, limit: 100);
                 var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == part.MessageId);
-                if (message?.media is not MessageMediaDocument { document: Document document })
+                if (message?.media is not MessageMediaDocument { document: Document })
                     throw new InvalidOperationException($"A parte {part.PartNumber}/{part.TotalParts} não foi encontrada no Telegram.");
 
-                var temporaryPath = Path.Combine(Path.GetTempPath(), $"omnidrive-rename-{Guid.NewGuid():N}.bin");
-                temporaryFiles.Add(temporaryPath);
-                await using (var output = File.Create(temporaryPath))
-                    await _telegramClient.DownloadFileAsync(document, output);
-
-                string uploadName;
+                var captionName = newName;
                 if (file.IsSplitFile)
                 {
                     if (!TryParseSplitFileName(part.SourceName, out var parsed))
                         throw new InvalidOperationException("Não foi possível validar os metadados de divisão do arquivo.");
-                    uploadName = $"{Path.GetFileNameWithoutExtension(newName)}_OD[{parsed.Uuid}_{part.PartNumber}-{part.TotalParts}]{Path.GetExtension(newName)}";
-                }
-                else
-                {
-                    uploadName = newName;
+                    captionName = $"{Path.GetFileNameWithoutExtension(newName)}_OD[{parsed.Uuid}_{part.PartNumber}-{part.TotalParts}]{Path.GetExtension(newName)}";
                 }
 
-                TelegramFilesStatus.Text = $"Enviando substituto {index + 1}/{sourceParts.Count}: {uploadName}...";
-                var uploadedFile = await _telegramClient.UploadFileAsync(temporaryPath, (_, _) => { });
-                await _telegramClient.Messages_SendMedia(part.Peer, new InputMediaUploadedDocument
-                {
-                    file = uploadedFile,
-                    mime_type = GetMimeType(uploadName),
-                    attributes = new TL.DocumentAttribute[]
-                    {
-                        new DocumentAttributeFilename { file_name = uploadName }
-                    }
-                }, string.Empty, Random.Shared.NextInt64());
-                replacementMessagesSent++;
-                uploadedAny = true;
+                var newCaption = RenameTelegramCaption(message.message, part.SourceName, captionName);
+                TelegramFilesStatus.Text = file.IsSplitFile
+                    ? $"Atualizando caption da parte {index + 1}/{sourceParts.Count}..."
+                    : "Atualizando caption no Telegram...";
+                await _telegramClient.Messages_EditMessage(part.Peer, message.ID, newCaption);
             }
 
-            if (replacementMessagesSent != sourceParts.Count)
-                throw new InvalidOperationException("Nem todas as partes novas foram enviadas; os arquivos originais foram mantidos.");
-
-            await DeleteTelegramFileFromSourceAsync(file);
             await LoadTelegramFilesAsync();
             TelegramFilesStatus.Text = $"Arquivo renomeado no Telegram para “{newName}”.";
         }
         catch (Exception ex)
         {
-            var extra = uploadedAny
-                ? " Algumas cópias novas podem ter sido enviadas; os originais foram mantidos para evitar perda de dados."
-                : string.Empty;
-            TelegramFilesStatus.Text = $"Não foi possível concluir a renomeação: {ex.Message}.{extra}";
-        }
-        finally
-        {
-            foreach (var path in temporaryFiles)
-            {
-                try { if (File.Exists(path)) File.Delete(path); } catch { }
-            }
+            TelegramFilesStatus.Text = $"Não foi possível concluir a renomeação: {ex.Message}. Se o arquivo tiver várias partes, confira as captions: o Telegram pode ter aceitado algumas alterações antes da falha.";
         }
     }
 
@@ -1464,12 +1472,13 @@ public partial class MainWindow : Window
                     });
                     var destination = entry.Destination?.Peer ?? new InputPeerSelf();
                     var mimeType = GetMimeType(uploadName);
+                    var uploadCaption = BuildTelegramCaption(uploadName, entry.VerifyHash ? localHash : null);
                     await _telegramClient.Messages_SendMedia(destination, new InputMediaUploadedDocument
                     {
                         file = uploadedFile,
                         mime_type = mimeType,
                         attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = uploadName } }
-                    }, string.Empty, Random.Shared.NextInt64());
+                    }, uploadCaption, Random.Shared.NextInt64());
                     if (entry.VerifyHash)
                     {
                         var finalHash = await ComputeSha256Async(sourcePath);
