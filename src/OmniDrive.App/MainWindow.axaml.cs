@@ -196,9 +196,9 @@ public partial class MainWindow : Window
             ["DetailFolder"] = item is null ? unknown : (_folderPath.LastOrDefault()?.Name ?? "Raiz do Drive"),
             ["DetailParts"] = item is null ? unknown : item.IsFolder ? "Não aplicável" : item.IsSplitFile
                 ? $"{item.Parts.Count} parte(s) encontrada(s) de {item.ExpectedPartCount}" + (item.IsIncomplete ? " — incompleto" : "")
-                : "1 parte (arquivo único)",
+                : "1 parte",
             ["DetailIntegrity"] = item is null ? unknown : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
-                ? $"Hash SHA-256 salvo: {item.SavedHash}" : unknown
+                ? item.SavedHash : unknown
         };
 
         foreach (var pair in values)
