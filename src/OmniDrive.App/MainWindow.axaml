@@ -287,7 +287,7 @@
                 <Grid ColumnDefinitions="34,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="9" RowSpacing="5">
                   <TextBlock Grid.RowSpan="3" Text="{Binding Icon}" FontSize="23" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#D6A8FF"/>
                   <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                  <Button Grid.Column="2" Grid.Row="0" Grid.RowSpan="2" Tag="{Binding}" Click="RemoveTransfer_Click" Classes="ghost" Content="×" Padding="8,2" ToolTip.Tip="Cancelar e remover"/>
+                  <StackPanel Grid.Column="2" Grid.Row="0" Grid.RowSpan="2" Orientation="Horizontal" Spacing="4"><Button Tag="{Binding}" Click="RetryTransfer_Click" Classes="ghost" Content="↻" Padding="7,2" ToolTip.Tip="Tentar novamente" IsVisible="{Binding CanRetry}"/><Button Tag="{Binding}" Click="RemoveTransfer_Click" Classes="ghost" Content="×" Padding="8,2" ToolTip.Tip="Remover da fila"/></StackPanel>
                   <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="{Binding Percentage}"/>
                   <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ProgressLabel}" Classes="muted" FontSize="10"/>
                   <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding PartDescription}" Foreground="#D6A8FF" FontSize="10" VerticalAlignment="Center"/>
