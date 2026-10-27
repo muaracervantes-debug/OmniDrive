@@ -722,44 +722,126 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new MenuItem
         {
-            Header = "Abrir",
-            Command = new RelayUiCommand(() =>
-                TelegramFilesStatus.Text = $"Este item é um documento do Telegram: {file.Name}. Para abrir, baixe o arquivo primeiro.")
-        });
-        menu.Items.Add(new MenuItem
-        {
             Header = "Baixar",
             Command = new RelayUiCommand(() => DownloadTelegramFileForItem(file))
-        });
-        menu.Items.Add(new Separator());
-        menu.Items.Add(new MenuItem
-        {
-            Header = "Renomear",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Renomear ainda não é compatível com documentos do Telegram.")
-        });
-        menu.Items.Add(new MenuItem
-        {
-            Header = "Fazer uma cópia",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Criar cópias diretamente no Telegram ainda não é compatível.")
-        });
-        menu.Items.Add(new MenuItem
-        {
-            Header = "Organizar",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "Opções de organização ainda não estão disponíveis para documentos do Telegram.")
         });
         menu.Items.Add(new MenuItem
         {
             Header = "Informações sobre o arquivo",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"{file.Name} · {file.SizeLabel} · {file.ChatName} · {file.DateLabel}")
+            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"{file.DisplayName} · {file.SizeLabel} · {file.ChatName} · {file.DateLabel}" +
+                (file.IsSplitFile ? $" · UUID: {file.SplitUuid} · Partes: {file.Parts.Count}/{file.ExpectedPartCount}" : string.Empty))
         });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem
         {
-            Header = "Mover para a lixeira",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = "O OmniDrive não pode mover mensagens do Telegram para a lixeira nesta versão.")
+            Header = "Excluir do Telegram…",
+            Command = new RelayUiCommand(() => _ = DeleteTelegramFileAsync(file))
         });
 
         menu.Open(CloudFilesList);
+    }
+
+    private async Task DeleteTelegramFileAsync(TelegramFileItem file)
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de excluir arquivos.";
+            return;
+        }
+
+        if (file.IsFolder)
+        {
+            TelegramFilesStatus.Text = "A exclusão de pastas do OmniDrive ainda não está disponível. Nenhum item foi excluído.";
+            return;
+        }
+
+        var description = file.IsSplitFile
+            ? $"“{file.DisplayName}” e todas as {file.Parts.Count} parte(s) associadas ao UUID {file.SplitUuid}"
+            : $"“{file.DisplayName}”";
+
+        if (!await ConfirmActionAsync(
+                "Confirmar exclusão",
+                $"O OmniDrive excluirá {description} diretamente do Telegram. Esta ação pode não ser reversível. Deseja continuar?"))
+            return;
+
+        try
+        {
+            var messages = file.IsSplitFile
+                ? file.Parts.Select(part => (part.Peer, part.MessageId)).ToList()
+                : new List<(InputPeer Peer, int MessageId)> { (file.Peer, file.MessageId) };
+
+            foreach (var group in messages
+                         .Where(item => item.MessageId > 0)
+                         .GroupBy(item => GetDeletePeerKey(item.Peer), StringComparer.Ordinal))
+            {
+                var first = group.First();
+                var ids = group.Select(item => item.MessageId).Distinct().ToArray();
+                if (first.Peer is InputPeerChannel channelPeer)
+                {
+                    await _telegramClient.Channels_DeleteMessages(
+                        new InputChannel(channelPeer.channel_id, channelPeer.access_hash), ids);
+                }
+                else
+                {
+                    await _telegramClient.Messages_DeleteMessages(ids, revoke: true);
+                }
+            }
+
+            TelegramFilesStatus.Text = $"Excluído do Telegram: {file.DisplayName}";
+            await LoadTelegramFilesAsync();
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível excluir “{file.DisplayName}” do Telegram: {ex.Message}";
+        }
+    }
+
+    private static string GetDeletePeerKey(InputPeer peer) => peer switch
+    {
+        InputPeerChannel channel => $"channel:{channel.channel_id}",
+        InputPeerChat chat => $"chat:{chat.chat_id}",
+        InputPeerUser user => $"user:{user.user_id}",
+        InputPeerSelf => "self",
+        _ => peer.GetType().Name
+    };
+
+    private async Task<bool> ConfirmActionAsync(string title, string message)
+    {
+        var dialog = new Window
+        {
+            Title = title,
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brush.Parse("#201D28"),
+            Padding = new Thickness(22)
+        };
+
+        var content = new StackPanel { Spacing = 18 };
+        content.Children.Add(new TextBlock
+        {
+            Text = message,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Foreground = Avalonia.Media.Brush.Parse("#F4F0FA")
+        });
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10
+        };
+        var cancel = new Button { Content = "Cancelar", MinWidth = 90 };
+        cancel.Click += (_, _) => dialog.Close(false);
+        var confirm = new Button { Content = "Excluir", MinWidth = 90 };
+        confirm.Click += (_, _) => dialog.Close(true);
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(confirm);
+        content.Children.Add(buttons);
+        dialog.Content = content;
+
+        return await dialog.ShowDialog<bool>(this);
     }
 
     private void DownloadTelegramFileForItem(TelegramFileItem file)
