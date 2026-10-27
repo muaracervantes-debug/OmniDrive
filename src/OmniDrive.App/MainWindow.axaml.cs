@@ -476,18 +476,23 @@ public partial class MainWindow : Window
 
         foreach (var file in files)
         {
-            if (file.IsFolder
-                || string.IsNullOrWhiteSpace(file.SavedHash)
-                || !TryParseSplitFileName(file.Name, out var parsed))
+            if (file.IsFolder || !TryParseSplitFileName(file.Name, out var parsed))
             {
                 result.Add(file);
                 continue;
             }
 
-            if (!groups.TryGetValue(file.SavedHash, out var group))
+            // Prefer the content hash so parts remain grouped after renaming, but
+            // fall back to the legacy _OD UUID for files uploaded before hash captions
+            // were introduced or when hash generation was disabled.
+            var groupKey = !string.IsNullOrWhiteSpace(file.SavedHash)
+                ? "hash:" + file.SavedHash
+                : "uuid:" + parsed.Uuid;
+
+            if (!groups.TryGetValue(groupKey, out var group))
             {
                 group = new List<(TelegramFileItem File, SplitFileName Parsed)>();
-                groups[file.SavedHash] = group;
+                groups[groupKey] = group;
             }
             group.Add((file, parsed));
         }
@@ -522,6 +527,8 @@ public partial class MainWindow : Window
                 : $"{expectedTotal} partes";
             var sourceChats = entries.Select(entry => entry.File.ChatName).Distinct(StringComparer.Ordinal).ToList();
             var chatLabel = sourceChats.Count == 1 ? sourceChats[0] : $"Telegram · {sourceChats.Count} chats";
+            var savedHash = entries.Select(entry => entry.File.SavedHash)
+                .FirstOrDefault(hash => !string.IsNullOrWhiteSpace(hash));
 
             result.Add(new TelegramFileItem(
                 displayName,
@@ -532,13 +539,13 @@ public partial class MainWindow : Window
                 first.File.MessageId,
                 first.File.Peer,
                 parts: parts,
-                splitUuid: pair.Key,
+                splitUuid: first.Parsed.Uuid,
                 expectedPartCount: expectedTotal,
                 isIncomplete: incomplete,
                 displayName: displayName,
                 partsLabel: partsLabel,
-                hasSavedHash: true,
-                savedHash: pair.Key));
+                hasSavedHash: savedHash is not null,
+                savedHash: savedHash));
         }
 
         return result;
