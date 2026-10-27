@@ -553,11 +553,14 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            var explanation = ExplainTransferError(ex, "consultar os arquivos", "Telegram");
             FilesEmptyTitle.Text = "Não foi possível carregar arquivos e pastas";
-            FilesEmptyDescription.Text = ex.Message;
+            FilesEmptyDescription.Text = explanation;
             EmptyFilesState.IsVisible = true;
             CloudFilesContainer.IsVisible = false;
-            TelegramFilesStatus.Text = "Falha ao consultar os chats do Telegram.";
+            TelegramFilesStatus.Text = explanation;
+            if (explanation.Contains("autenticação", StringComparison.OrdinalIgnoreCase))
+                MarkTelegramDisconnected(explanation);
         }
     }
 
@@ -1850,8 +1853,9 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
                         queueItem.ProgressLabel = entry.VerifyHash ? "Calculando SHA-256" : "Enviando arquivo";
+                        UploadModalStatus.Text = queueItem.ProgressLabel;
+                        var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
                         await UploadTelegramMediaAsync(sourcePath, uploadName, BuildTelegramCaption(uploadName, localHash),
                             destination, GetMimeType(uploadName), ReportProgress);
                         uploadedParts++;
