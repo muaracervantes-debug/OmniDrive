@@ -211,10 +211,11 @@
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsFolderPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
-                <StackPanel Spacing="4"><TextBlock Text="Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Recurso previsto para uma versão futura. Até lá, o destino deverá ser escolhido em cada download." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                  <TextBox x:Name="DefaultDownloadFolder" IsReadOnly="True" Watermark="Ainda não configurável nesta versão"/>
-                  <Button Grid.Column="1" Classes="ghost" Content="Selecionar pasta" IsEnabled="False"/>
+                <StackPanel Spacing="4"><TextBlock Text="Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Esta pasta será sugerida ao abrir a janela de download. Você ainda poderá escolher outra pasta para cada arquivo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                  <TextBox x:Name="DefaultDownloadFolder" IsReadOnly="True" Watermark="Nenhuma pasta padrão definida"/>
+                  <Button Grid.Column="1" Classes="ghost" Content="Selecionar pasta" Click="SelectDefaultDownloadFolder_Click"/>
+                  <Button Grid.Column="2" Classes="ghost" Content="Limpar" Click="ClearDefaultDownloadFolder_Click"/>
                 </Grid>
               </StackPanel>
             </Border></StackPanel></ScrollViewer>
@@ -336,6 +337,36 @@
           <Button Grid.Column="2" Classes="action" Click="StartUpload_Click" Content="Upload"/>
         </Grid>
       </Grid>
+    </Border>
+  </Grid>
+  <Grid x:Name="DownloadModalOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#B30A0810" ZIndex="50" PointerPressed="DownloadModalOverlay_PointerPressed">
+    <Border x:Name="DownloadModalCard" Classes="panel" Width="600" MaxHeight="700" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28" PointerPressed="DownloadModalCard_PointerPressed">
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Baixar arquivo" FontSize="22" FontWeight="Bold"/>
+            <TextBlock x:Name="DownloadModalSubtitle" Text="Defina o nome e o destino do arquivo." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="ghost" Content="×" Click="CancelDownload_Click"/>
+        </Grid>
+        <StackPanel Spacing="6">
+          <TextBlock Text="Nome do arquivo" FontSize="12" FontWeight="SemiBold"/>
+          <TextBox x:Name="DownloadFileName" Watermark="Nome do arquivo com extensão"/>
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Text="Pasta de destino" FontSize="12" FontWeight="SemiBold"/>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="DownloadFolderPath" IsReadOnly="True" Watermark="Escolha a pasta onde salvar"/>
+            <Button Grid.Column="1" Classes="ghost" Content="Procurar..." Click="ChooseDownloadFolder_Click"/>
+          </Grid>
+        </StackPanel>
+        <CheckBox x:Name="DownloadVerifyHashCheckBox" Content="Verificar SHA-256 quando houver hash de referência"/>
+        <TextBlock x:Name="DownloadModalStatus" Text="" Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+          <Button Classes="ghost" Content="Cancelar" Click="CancelDownload_Click"/>
+          <Button x:Name="StartDownloadButton" Classes="action" Content="Download" Click="StartDownload_Click"/>
+        </StackPanel>
+      </StackPanel>
     </Border>
   </Grid>
   <Grid x:Name="FilterModalOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#B30A0810" ZIndex="30" PointerPressed="FilterModalOverlay_PointerPressed">
