@@ -802,7 +802,7 @@ public partial class MainWindow : Window
             UploadItemsPanel.Children.Clear();
             UploadModalStatus.Text = "Abrindo o seletor de arquivos do Windows...";
             UploadModalOverlay.IsVisible = true;
-            await Dispatcher.UIThread.Yield(DispatcherPriority.Background);
+            await Task.Delay(50);
             UploadModalOverlay.IsVisible = false;
 
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -848,7 +848,7 @@ public partial class MainWindow : Window
             UploadItemsPanel.Children.Clear();
             UploadModalStatus.Text = "Abrindo o seletor de pastas do Windows...";
             UploadModalOverlay.IsVisible = true;
-            await Dispatcher.UIThread.Yield(DispatcherPriority.Background);
+            await Task.Delay(50);
             UploadModalOverlay.IsVisible = false;
 
             var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
