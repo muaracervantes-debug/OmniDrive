@@ -53,7 +53,7 @@
             <Grid RowDefinitions="Auto,*">
               <Border BorderBrush="#332D3D" BorderThickness="0,0,0,1" Padding="14,12">
                 <Grid ColumnDefinitions="34,*,105,130,26" ColumnSpacing="8">
-                  <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" IsEnabled="True" Checked="SelectAllCheckBox_Changed" Unchecked="SelectAllCheckBox_Changed" ToolTip.Tip="Selecionar todos os itens visíveis"/>
+                  <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" IsEnabled="True" ToolTip.Tip="Selecionar todos os itens visíveis"/>
                   <TextBlock Grid.Column="1" Text="Nome" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="2" Text="Tamanho" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="3" Text="Modificado" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
