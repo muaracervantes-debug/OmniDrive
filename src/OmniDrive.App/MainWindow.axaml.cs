@@ -761,6 +761,128 @@ public partial class MainWindow : Window
         await DeleteTelegramFilesAsync(new[] { file });
     }
 
+    private async void DownloadSelected_Click(object? sender, RoutedEventArgs e) => await DownloadSelectedTelegramFilesAsync();
+
+    private async Task DownloadSelectedTelegramFilesAsync()
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de baixar arquivos.";
+            return;
+        }
+
+        var selected = CloudFilesList.SelectedItems.OfType<TelegramFileItem>().ToList();
+        var files = selected.Where(file => !file.IsFolder).ToList();
+        if (files.Count == 0)
+        {
+            TelegramFilesStatus.Text = "Selecione um ou mais arquivos para baixar.";
+            return;
+        }
+
+        var incomplete = files.Where(file => file.IsSplitFile && file.IsIncomplete).ToList();
+        files = files.Except(incomplete).ToList();
+        if (files.Count == 0)
+        {
+            TelegramFilesStatus.Text = "Os arquivos selecionados estão incompletos e não podem ser reconstruídos.";
+            return;
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Escolha a pasta para salvar os arquivos selecionados",
+            AllowMultiple = false
+        });
+        if (folders.Count == 0)
+            return;
+
+        var destination = folders[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(destination))
+        {
+            TelegramFilesStatus.Text = "Não foi possível obter o caminho da pasta escolhida.";
+            return;
+        }
+
+        var succeeded = 0;
+        var failures = new List<string>();
+        foreach (var file in files)
+        {
+            var outputPath = GetUniqueDownloadPath(destination, file.DisplayName);
+            try
+            {
+                TelegramFilesStatus.Text = $"Baixando {succeeded + 1}/{files.Count}: {file.DisplayName}...";
+                var documents = await GetTelegramDocumentsForFileAsync(file);
+                await using (var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    foreach (var document in documents)
+                        await _telegramClient.DownloadFileAsync(document, output);
+                }
+                succeeded++;
+            }
+            catch (Exception ex)
+            {
+                try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { }
+                failures.Add($"{file.DisplayName}: {ex.Message}");
+            }
+        }
+
+        var summary = $"Downloads concluídos: {succeeded}/{files.Count}. Pasta: {destination}";
+        if (incomplete.Count > 0)
+            summary += $" Arquivos divididos incompletos ignorados: {incomplete.Count}.";
+        if (selected.Count != files.Count + incomplete.Count)
+            summary += $" Pastas ignoradas: {selected.Count - files.Count - incomplete.Count}.";
+        if (failures.Count > 0)
+            summary += " Falhas: " + string.Join(" | ", failures.Take(3));
+        TelegramFilesStatus.Text = summary;
+    }
+
+    private async Task<List<Document>> GetTelegramDocumentsForFileAsync(TelegramFileItem file)
+    {
+        if (_telegramClient is null)
+            throw new InvalidOperationException("O cliente do Telegram não está disponível.");
+
+        var documents = new List<Document>();
+        if (file.IsSplitFile)
+        {
+            foreach (var part in file.Parts.OrderBy(part => part.PartNumber))
+            {
+                var history = await _telegramClient.Messages_GetHistory(part.Peer, limit: 100);
+                var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == part.MessageId);
+                if (message?.media is not MessageMediaDocument { document: Document document })
+                    throw new InvalidOperationException($"A parte {part.PartNumber}/{part.TotalParts} não foi encontrada.");
+                documents.Add(document);
+            }
+        }
+        else
+        {
+            var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
+            var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == file.MessageId);
+            if (message?.media is not MessageMediaDocument { document: Document document })
+                throw new InvalidOperationException("A mensagem original do Telegram não contém mais este arquivo.");
+            documents.Add(document);
+        }
+
+        return documents;
+    }
+
+    private static string GetUniqueDownloadPath(string folder, string fileName)
+    {
+        var safeName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(safeName))
+            safeName = "arquivo";
+        var path = Path.Combine(folder, safeName);
+        if (!File.Exists(path))
+            return path;
+
+        var name = Path.GetFileNameWithoutExtension(safeName);
+        var extension = Path.GetExtension(safeName);
+        for (var index = 2; ; index++)
+        {
+            path = Path.Combine(folder, $"{name} ({index}){extension}");
+            if (!File.Exists(path))
+                return path;
+        }
+    }
+
     private async void DeleteSelected_Click(object? sender, RoutedEventArgs e) => await DeleteSelectedTelegramFilesAsync();
 
     private async Task DeleteSelectedTelegramFilesAsync()
