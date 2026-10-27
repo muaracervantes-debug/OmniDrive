@@ -887,6 +887,29 @@ public partial class MainWindow : Window
         _pendingDownloadFile = null;
     }
 
+    private static string ExplainTransferError(Exception ex, string operation, string? credential = null)
+    {
+        var text = ex.ToString().ToLowerInvariant();
+        var prefix = string.IsNullOrWhiteSpace(credential) ? "" : $"Conta “{credential}”: ";
+        if (text.Contains("auth_key_unregistered") || text.Contains("session_revoked") || text.Contains("user_deactivated") || text.Contains("auth_key_invalid") || text.Contains("401") || text.Contains("unauthorized") || text.Contains("not authorized") || text.Contains("session expired"))
+            return prefix + "a autenticação foi recusada ou expirou. Reconecte o serviço em Configurações → Conectar serviços.";
+        if (text.Contains("disk full") || text.Contains("no space left") || text.Contains("not enough space") || text.Contains("there is not enough space") || text.Contains("0x80070070"))
+            return prefix + "não há espaço livre suficiente no destino ou na unidade temporária. Libere espaço e tente novamente.";
+        if (text.Contains("quota") || text.Contains("storage limit") || text.Contains("peer_flood") || text.Contains("file_parts_invalid") || text.Contains("file_part") || text.Contains("too large") || text.Contains("limit exceeded") || text.Contains("premium_account_required"))
+            return prefix + "o serviço recusou a operação por limite, cota ou tamanho. Confira o limite do destino e as configurações de upload.";
+        if (text.Contains("network") || text.Contains("connection") || text.Contains("timeout") || text.Contains("socket") || text.Contains("temporarily unavailable"))
+            return prefix + "a conexão com o serviço foi interrompida. Verifique a internet e tente novamente.";
+        return $"{prefix}falha ao {operation}: {ex.Message}";
+    }
+
+    private void MarkTelegramDisconnected(string reason)
+    {
+        _telegramClient?.Dispose();
+        _telegramClient = null;
+        _telegramPendingKind = null;
+        TelegramStatus.Text = $"Telegram desconectado: {reason} Reconecte em Configurações → Conectar serviços.";
+        TelegramConnectButton.Content = "Salvar e conectar";
+    }
     private async void StartDownload_Click(object? sender, RoutedEventArgs e)
     {
         var file = _pendingDownloadFile;
