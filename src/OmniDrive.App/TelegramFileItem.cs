@@ -60,4 +60,5 @@ public sealed record TelegramFilePart(
     int MessageId,
     int PartNumber,
     int TotalParts,
-    long SizeBytes);
+    long SizeBytes,
+    string? SavedHash = null);
