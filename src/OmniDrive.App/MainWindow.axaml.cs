@@ -1874,7 +1874,7 @@ public partial class MainWindow : Window
     }
 
     private async Task UploadTelegramMediaAsync(string sourcePath, string telegramFileName, string caption,
-        InputPeer destination, Client.ProgressCallback progress)
+        InputPeer destination, string mimeType, Client.ProgressCallback progress)
     {
         if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
         var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, progress);
