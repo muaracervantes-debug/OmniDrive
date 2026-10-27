@@ -936,13 +936,19 @@ public partial class MainWindow : Window
             queueItem.Percentage = 3;
             var documents = await GetTelegramDocumentsForFileAsync(file);
             var orderedParts = file.IsSplitFile ? file.Parts.OrderBy(part => part.PartNumber).ToList() : new List<TelegramFilePart>();
+            var cacheIdentity = file.IsSplitFile ? file.SplitUuid! : $"{file.ChatName}_{file.MessageId}_{file.Name}";
+            var cacheKey = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(cacheIdentity)));
+            var cacheDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "download-cache", cacheKey);
+            Directory.CreateDirectory(cacheDirectory);
             await using (var output = new FileStream(tempOutputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 for (var index = 0; index < documents.Count; index++)
                 {
                     var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
                     var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
-                    var tempPartPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_download_{Guid.NewGuid():N}.part");
+                    var canCache = !string.IsNullOrWhiteSpace(expectedHash);
+                    var cachedPartPath = Path.Combine(cacheDirectory, $"part_{partNumber:D6}.bin");
+                    var tempPartPath = canCache ? cachedPartPath : Path.Combine(Path.GetTempPath(), $"OmniDrive_download_{Guid.NewGuid():N}.part");
                     try
                     {
                         queueItem.PartDescription = file.IsSplitFile ? $"Parte {partNumber}/{file.ExpectedPartCount}" : "Arquivo único";
@@ -950,19 +956,33 @@ public partial class MainWindow : Window
                             ? $"Baixando parte {partNumber}/{file.ExpectedPartCount}"
                             : "Baixando arquivo";
                         queueItem.Percentage = Math.Min(95, 5 + (double)index / Math.Max(1, documents.Count) * 90);
-                        await DownloadPartWithIntegrityCheckAsync(documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName, verifyHash);
+
+                        var useCachedPart = canCache && File.Exists(cachedPartPath)
+                            && string.Equals(await ComputeSha256Async(cachedPartPath), expectedHash, StringComparison.OrdinalIgnoreCase);
+                        if (useCachedPart)
+                        {
+                            queueItem.ProgressLabel = $"Reutilizando parte validada {partNumber}/{file.ExpectedPartCount}";
+                        }
+                        else
+                        {
+                            if (File.Exists(tempPartPath)) File.Delete(tempPartPath);
+                            await DownloadPartWithIntegrityCheckAsync(documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName, verifyHash);
+                        }
+
                         await using var partStream = File.OpenRead(tempPartPath);
                         await partStream.CopyToAsync(output);
                     }
                     finally
                     {
-                        try { if (File.Exists(tempPartPath)) File.Delete(tempPartPath); } catch { }
+                        if (!canCache)
+                            try { if (File.Exists(tempPartPath)) File.Delete(tempPartPath); } catch { }
                     }
                     queueItem.Percentage = Math.Min(98, (double)(index + 1) / documents.Count * 98);
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
                 }
             }
             File.Move(tempOutputPath, outputPath);
+            try { if (Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
             queueItem.Percentage = 100;
             queueItem.Status = "Concluído";
             queueItem.ProgressLabel = "Download concluído";
