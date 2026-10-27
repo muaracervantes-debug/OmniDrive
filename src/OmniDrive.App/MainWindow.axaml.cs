@@ -813,13 +813,13 @@ public partial class MainWindow : Window
         });
         menu.Items.Add(new MenuItem
         {
-            Header = "Renomear…",
+            Header = "Renomear",
             Command = new RelayUiCommand(() => _ = RenameTelegramFileAsync(file))
         });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem
         {
-            Header = "Excluir…",
+            Header = "Excluir",
             Command = new RelayUiCommand(() => _ = DeleteTelegramFileAsync(file))
         });
 
