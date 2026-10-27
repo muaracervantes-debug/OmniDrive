@@ -759,6 +759,8 @@ public partial class MainWindow : Window
         await DeleteTelegramFilesAsync(new[] { file });
     }
 
+    private async void DeleteSelected_Click(object? sender, RoutedEventArgs e) => await DeleteSelectedTelegramFilesAsync();
+
     private async Task DeleteSelectedTelegramFilesAsync()
     {
         var selected = CloudFilesList.SelectedItems.OfType<TelegramFileItem>().ToList();
