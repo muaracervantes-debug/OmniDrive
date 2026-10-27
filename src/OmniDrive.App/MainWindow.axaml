@@ -105,7 +105,7 @@
                 <TextBlock Text="INFORMAÇÕES" Classes="muted" FontSize="10" FontWeight="Bold"/>
                 <StackPanel Spacing="4"><TextBlock Text="Nome" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailName" Text="Informação não disponivel" FontSize="12"/></StackPanel>
                 <StackPanel Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailSize" Text="Informação não disponivel" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Extensão" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailType" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Extensão" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailExtension" Text="Informação não disponivel" FontSize="12"/></StackPanel>
                 <StackPanel Spacing="4"><TextBlock Text="Data de criação" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailCreated" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <StackPanel Spacing="4"><TextBlock Text="Data de modificação" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailModified" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Border Height="1" Background="#342D3E"/>
