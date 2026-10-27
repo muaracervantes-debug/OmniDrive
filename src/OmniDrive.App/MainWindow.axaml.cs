@@ -898,16 +898,14 @@ public partial class MainWindow : Window
     {
         UploadItemsPanel.Children.Clear();
         UploadModalTitle.Text = _uploadIsFolder ? "Upload de pasta" : $"Upload de arquivos ({_pendingUploads.Count})";
-        UploadModalStatus.Text = _telegramClient?.User is null
-            ? "Arquivos selecionados. Para iniciar o envio, conecte o Telegram em Configurações → Conectar serviços."
-            : "O destino será a conversa/pasta aberta no Drive; na raiz, use a conversa “Mensagens salvas”.";
+        var destinationName = _folderPath.LastOrDefault()?.Name ?? "Mensagens salvas";
+        UploadModalStatus.Text = $"Salvo em {destinationName}";
         var credentials = new[] { "Telegram" }.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
         foreach (var entry in _pendingUploads)
         {
             var card = new Border { Classes = { "panel" }, Padding = new Thickness(14) };
             var fields = new StackPanel { Spacing = 9 };
-            fields.Children.Add(new TextBlock { Text = entry.IsFolder ? $"Pasta: {entry.OriginalName}" : $"Arquivo: {entry.OriginalName}", FontWeight = Avalonia.Media.FontWeight.SemiBold, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
-            var nameBox = new TextBox { Text = entry.UploadName, Watermark = "Nome no destino" };
+            var nameBox = new TextBox { Text = entry.UploadName, Watermark = "Nome no destino", Width = 560, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
             nameBox.TextChanged += (_, _) => entry.UploadName = nameBox.Text?.Trim() ?? "";
             fields.Children.Add(new TextBlock { Text = "Nome no destino", Classes = { "muted" }, FontSize = 11 });
             fields.Children.Add(nameBox);
@@ -924,10 +922,6 @@ public partial class MainWindow : Window
                 var zipCheck = new CheckBox { Content = "Compactar em ZIP", IsChecked = entry.Compress };
                 zipCheck.IsCheckedChanged += (_, _) => entry.Compress = zipCheck.IsChecked == true;
                 options.Children.Add(zipCheck);
-            }
-            else
-            {
-                options.Children.Add(new TextBlock { Text = "A pasta será compactada automaticamente em ZIP.", Classes = { "muted" }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, FontSize = 11 });
             }
             fields.Children.Add(options);
             card.Child = fields;
