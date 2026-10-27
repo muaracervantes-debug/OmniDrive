@@ -746,6 +746,11 @@ public partial class MainWindow : Window
             Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"{file.DisplayName} · {file.SizeLabel} · {file.ChatName} · {file.DateLabel}" +
                 (file.IsSplitFile ? $" · UUID: {file.SplitUuid} · Partes: {file.Parts.Count}/{file.ExpectedPartCount}" : string.Empty))
         });
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Renomear no Telegram…",
+            Command = new RelayUiCommand(() => _ = RenameTelegramFileAsync(file))
+        });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem
         {
@@ -754,6 +759,154 @@ public partial class MainWindow : Window
         });
 
         menu.Open(CloudFilesList);
+    }
+
+
+    private async Task RenameTelegramFileAsync(TelegramFileItem file)
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de renomear arquivos.";
+            return;
+        }
+        if (file.IsFolder || (file.IsSplitFile && file.IsIncomplete))
+        {
+            TelegramFilesStatus.Text = "Não é possível renomear uma pasta ou um arquivo dividido incompleto.";
+            return;
+        }
+
+        var nameBox = new TextBox
+        {
+            Text = file.DisplayName,
+            MinWidth = 360,
+            Watermark = "Novo nome do arquivo"
+        };
+        var dialog = new Window
+        {
+            Title = "Renomear arquivo no Telegram",
+            Width = 460,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brush.Parse("#201D28"),
+            Padding = new Thickness(22)
+        };
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = file.IsSplitFile
+                ? "O OmniDrive enviará novas partes com o mesmo UUID e numeração antes de excluir as antigas."
+                : "O Telegram não permite alterar diretamente o nome do documento. O OmniDrive enviará uma cópia renomeada e só depois tentará excluir a original.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Foreground = Avalonia.Media.Brush.Parse("#F4F0FA")
+        });
+        panel.Children.Add(nameBox);
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 10
+        };
+        var cancel = new Button { Content = "Cancelar", MinWidth = 90 };
+        cancel.Click += (_, _) => dialog.Close((string?)null);
+        var rename = new Button { Content = "Renomear", MinWidth = 90 };
+        rename.Click += (_, _) => dialog.Close(nameBox.Text?.Trim());
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(rename);
+        panel.Children.Add(buttons);
+        dialog.Content = panel;
+
+        var newName = await dialog.ShowDialog<string?>(this);
+        if (string.IsNullOrWhiteSpace(newName) || newName == file.DisplayName)
+            return;
+        newName = Path.GetFileName(newName.Trim());
+        if (string.IsNullOrWhiteSpace(newName) || newName is "." or "..")
+        {
+            TelegramFilesStatus.Text = "Informe um nome de arquivo válido.";
+            return;
+        }
+        if (!await ConfirmActionAsync(
+                "Confirmar renomeação",
+                $"Será enviado um novo arquivo chamado “{newName}”. A versão antiga só será excluída depois que todas as novas partes forem enviadas. Continuar?"))
+            return;
+
+        var temporaryFiles = new List<string>();
+        var uploadedAny = false;
+        try
+        {
+            var sourceParts = new List<(InputPeer Peer, int MessageId, string SourceName, int PartNumber, int TotalParts)>();
+            if (file.IsSplitFile)
+            {
+                foreach (var part in file.Parts.OrderBy(part => part.PartNumber))
+                    sourceParts.Add((part.Peer, part.MessageId, part.Name, part.PartNumber, part.TotalParts));
+            }
+            else
+            {
+                sourceParts.Add((file.Peer, file.MessageId, file.Name, 1, 1));
+            }
+
+            var replacementMessagesSent = 0;
+            for (var index = 0; index < sourceParts.Count; index++)
+            {
+                var part = sourceParts[index];
+                var history = await _telegramClient.Messages_GetHistory(part.Peer, limit: 100);
+                var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == part.MessageId);
+                if (message?.media is not MessageMediaDocument { document: Document document })
+                    throw new InvalidOperationException($"A parte {part.PartNumber}/{part.TotalParts} não foi encontrada no Telegram.");
+
+                var temporaryPath = Path.Combine(Path.GetTempPath(), $"omnidrive-rename-{Guid.NewGuid():N}.bin");
+                temporaryFiles.Add(temporaryPath);
+                await using (var output = File.Create(temporaryPath))
+                    await _telegramClient.DownloadFileAsync(document, output);
+
+                string uploadName;
+                if (file.IsSplitFile)
+                {
+                    if (!TryParseSplitFileName(part.SourceName, out var parsed))
+                        throw new InvalidOperationException("Não foi possível validar os metadados de divisão do arquivo.");
+                    uploadName = $"{Path.GetFileNameWithoutExtension(newName)}_OD[{parsed.Uuid}_{part.PartNumber}-{part.TotalParts}]{Path.GetExtension(newName)}";
+                }
+                else
+                {
+                    uploadName = newName;
+                }
+
+                TelegramFilesStatus.Text = $"Enviando substituto {index + 1}/{sourceParts.Count}: {uploadName}...";
+                var uploadedFile = await _telegramClient.UploadFileAsync(temporaryPath, (_, _) => { });
+                await _telegramClient.Messages_SendMedia(part.Peer, new InputMediaUploadedDocument
+                {
+                    file = uploadedFile,
+                    mime_type = GetMimeType(uploadName),
+                    attributes = new TL.DocumentAttribute[]
+                    {
+                        new DocumentAttributeFilename { file_name = uploadName }
+                    }
+                }, string.Empty, Random.Shared.NextInt64());
+                replacementMessagesSent++;
+                uploadedAny = true;
+            }
+
+            if (replacementMessagesSent != sourceParts.Count)
+                throw new InvalidOperationException("Nem todas as partes novas foram enviadas; os arquivos originais foram mantidos.");
+
+            await DeleteTelegramFileFromSourceAsync(file);
+            await LoadTelegramFilesAsync();
+            TelegramFilesStatus.Text = $"Arquivo renomeado no Telegram para “{newName}”.";
+        }
+        catch (Exception ex)
+        {
+            var extra = uploadedAny
+                ? " Algumas cópias novas podem ter sido enviadas; os originais foram mantidos para evitar perda de dados."
+                : string.Empty;
+            TelegramFilesStatus.Text = $"Não foi possível concluir a renomeação: {ex.Message}.{extra}";
+        }
+        finally
+        {
+            foreach (var path in temporaryFiles)
+            {
+                try { if (File.Exists(path)) File.Delete(path); } catch { }
+            }
+        }
     }
 
     private async Task DeleteTelegramFileAsync(TelegramFileItem file)
