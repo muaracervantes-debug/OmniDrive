@@ -1766,7 +1766,9 @@ public partial class MainWindow : Window
             {
                 var queueItem = queuedUploads[entry];
                 var transferStarted = DateTime.UtcNow;
-                queueItem.Status = "Preparando";
+                var uploadedParts = 0;
+                queueItem.Status = "Em andamento";
+                queueItem.ProgressLabel = "Preparando arquivo";
                 queueItem.PartDescription = "Preparando arquivo";
                 string? tempPath = null;
                 try
@@ -1833,8 +1835,10 @@ public partial class MainWindow : Window
                                 var partHash = await ComputeSha256Async(partPaths[index]);
                                 queueItem.PartDescription = $"Parte {partNumber}/{partPaths.Count}";
                                 UploadModalStatus.Text = $"Enviando parte {partNumber}/{partPaths.Count}: {partName}";
+                                queueItem.ProgressLabel = $"Enviando parte {partNumber}/{partPaths.Count}";
                                 await UploadTelegramMediaAsync(partPaths[index], partName, BuildTelegramCaption(partName, partHash),
                                     destination, GetMimeType(uploadName), ReportProgress);
+                                uploadedParts++;
                                 SaveIntegrityRecord(splitUuid, partNumber, partName, destinationName, partHash);
                             }
                         }
@@ -1847,8 +1851,10 @@ public partial class MainWindow : Window
                     else
                     {
                         var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
+                        queueItem.ProgressLabel = entry.VerifyHash ? "Calculando SHA-256" : "Enviando arquivo";
                         await UploadTelegramMediaAsync(sourcePath, uploadName, BuildTelegramCaption(uploadName, localHash),
                             destination, GetMimeType(uploadName), ReportProgress);
+                        uploadedParts++;
                         if (entry.VerifyHash)
                         {
                             var finalHash = await ComputeSha256Async(sourcePath);
@@ -1860,6 +1866,8 @@ public partial class MainWindow : Window
                     queueItem.Percentage = 100;
                     queueItem.ProgressLabel = "Concluído";
                     queueItem.Status = "Concluído";
+                    queueItem.CanRetry = false;
+                    queueItem.ProgressLabel = "Concluído";
                     queueItem.PartDescription = "Concluído";
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
                     UpdateTransferQueueDisplay();
@@ -1877,7 +1885,10 @@ public partial class MainWindow : Window
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
                     UpdateTransferQueueDisplay();
                     if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
-                    UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {explanation}";
+                    var partialNote = uploadedParts > 0
+                        ? $" A operação ficou parcial: {uploadedParts} parte(s) já foram enviadas; verifique o destino antes de repetir."
+                        : "";
+                    UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {explanation}{partialNote}";
                     TelegramFilesStatus.Text = UploadModalStatus.Text;
                     if (explanation.Contains("autenticação", StringComparison.OrdinalIgnoreCase))
                         MarkTelegramDisconnected(explanation);
