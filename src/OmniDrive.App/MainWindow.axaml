@@ -46,7 +46,7 @@
                 <Button x:Name="BreadcrumbCurrent" Classes="ghost" Padding="8,7" Content="Drive na nuvem" Click="BreadcrumbCurrent_Click" ToolTip.Tip="Pasta atual"/>
                 <TextBlock x:Name="SelectionCount" Text="" Classes="muted" VerticalAlignment="Center" Margin="8,0,0,0"/>
               </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Height="40" Content="↻ Atualizar"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center" Height="40" Padding="15,8" Content="Novo"/></StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="ghost" Click="DeleteSelected_Click" VerticalAlignment="Center" Height="40" Content="Excluir selecionados" ToolTip.Tip="Exclui os arquivos selecionados do Telegram após confirmação"/><Button Classes="ghost" Click="LoadTelegramFiles_Click" VerticalAlignment="Center" Height="40" Content="↻ Atualizar"/><Button Classes="action" Click="New_Click" VerticalAlignment="Center" Height="40" Padding="15,8" Content="Novo"/></StackPanel>
             </Grid>
           </Grid>
           <Border Grid.Row="1" Classes="panel" Padding="0" VerticalAlignment="Stretch">
