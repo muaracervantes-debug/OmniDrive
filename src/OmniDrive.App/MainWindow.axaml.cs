@@ -612,12 +612,9 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            // Prefer the content hash so parts remain grouped after renaming, but
-            // fall back to the legacy _OD UUID for files uploaded before hash captions
-            // were introduced or when hash generation was disabled.
-            var groupKey = !string.IsNullOrWhiteSpace(file.SavedHash)
-                ? "hash:" + file.SavedHash
-                : "uuid:" + parsed.Uuid;
+            // The UUID embedded in _OD[...] is the stable identity of a split file.
+            // SHA-256 is integrity metadata only and must never be used to group parts.
+            var groupKey = "uuid:" + parsed.Uuid;
 
             if (!groups.TryGetValue(groupKey, out var group))
             {
