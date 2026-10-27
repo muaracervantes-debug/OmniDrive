@@ -70,7 +70,7 @@
                 </Grid>
                 <Grid x:Name="CloudFilesContainer" IsVisible="False" RowDefinitions="Auto,*" ClipToBounds="True">
                   <TextBlock x:Name="TelegramFilesStatus" Text="" Classes="muted" FontSize="11" Margin="14,10"/>
-                  <ListBox Grid.Row="1" x:Name="CloudFilesList" SelectionMode="Multiple" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  <ListBox Grid.Row="1" x:Name="CloudFilesList" SelectionMode="Multiple" SelectionChanged="CloudFilesList_SelectionChanged" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="local:TelegramFileItem">
                         <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1" Background="Transparent" PointerEntered="CloudFileRow_PointerEntered" PointerExited="CloudFileRow_PointerExited">
@@ -101,24 +101,24 @@
           <Grid RowDefinitions="Auto,Auto,*">
             <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="4"><TextBlock Text="Detalhes" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="Metadados do item selecionado" Classes="muted" FontSize="11"/></StackPanel><Button Grid.Column="1" Classes="ghost" Content="›" Click="ToggleDetails_Click" ToolTip.Tip="Recolher painel"/></Grid>
             <Border Grid.Row="1" Background="#292431" CornerRadius="12" Padding="14" Margin="0,18,0,16">
-              <StackPanel Spacing="8"><Border Width="42" Height="42" CornerRadius="12" Background="#382844" HorizontalAlignment="Left"><TextBlock Text="?" FontSize="22" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="Nenhum item selecionado" FontWeight="SemiBold"/><TextBlock Text="Selecione um arquivo para ver os detalhes fornecidos pelo serviço." Classes="muted" FontSize="11" TextWrapping="Wrap"/></StackPanel>
+              <StackPanel Spacing="8"><Border Width="42" Height="42" CornerRadius="12" Background="#382844" HorizontalAlignment="Left"><TextBlock Text="?" FontSize="22" Foreground="#D6A8FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock x:Name="DetailSelectionTitle" Text="Nenhum item selecionado" FontWeight="SemiBold"/><TextBlock x:Name="DetailSelectionDescription" Text="Selecione um arquivo ou pasta para ver os detalhes." Classes="muted" FontSize="11" TextWrapping="Wrap"/></StackPanel>
             </Border>
             <ScrollViewer Grid.Row="2">
               <StackPanel Spacing="14">
                 <TextBlock Text="INFORMAÇÕES" Classes="muted" FontSize="10" FontWeight="Bold"/>
-                <StackPanel Spacing="4"><TextBlock Text="Nome" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Tipo / extensão" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Data de modificação" Classes="muted" FontSize="11"/><TextBlock Text="Não fornecida pelo serviço" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Nome" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailName" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Tamanho" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailSize" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Tipo / extensão" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailType" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Data de modificação" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailModified" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Border Height="1" Background="#342D3E"/>
                 <TextBlock Text="ORIGEM" Classes="muted" FontSize="10" FontWeight="Bold"/>
-                <StackPanel Spacing="4"><TextBlock Text="Serviço" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Conta / credencial" Classes="muted" FontSize="11"/><TextBlock Text="Não conectado" FontSize="12"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Pasta" Classes="muted" FontSize="11"/><TextBlock Text="Não disponível" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Serviço" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailService" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Conta / credencial" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailCredential" Text="Informação não disponivel" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Pasta" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailFolder" Text="Informação não disponivel" FontSize="12"/></StackPanel>
                 <Border Height="1" Background="#342D3E"/>
                 <TextBlock Text="INTEGRIDADE" Classes="muted" FontSize="10" FontWeight="Bold"/>
-                <StackPanel Spacing="4"><TextBlock Text="Partes do arquivo" Classes="muted" FontSize="11"/><TextBlock Text="Não aplicável ou desconhecido" FontSize="12" TextWrapping="Wrap"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Verificação" Classes="muted" FontSize="11"/><TextBlock Text="Não verificada" FontSize="12"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Partes do arquivo" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailParts" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="Verificação" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailIntegrity" Text="Informação não disponivel" FontSize="12"/></StackPanel>
               </StackPanel>
             </ScrollViewer>
           </Grid>
