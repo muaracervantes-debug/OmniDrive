@@ -440,18 +440,34 @@ public partial class MainWindow : Window
 
     private static (string Name, string? Hash) ParseTelegramCaption(string? caption, string fallbackName)
     {
+        var filenameMatch = TelegramHashMarkerRegex.Match(fallbackName);
+        var filenameHash = filenameMatch.Success
+            ? filenameMatch.Groups["hash"].Value.ToLowerInvariant()
+            : null;
+        var cleanFallbackName = TelegramHashMarkerRegex.Replace(fallbackName, string.Empty);
+
         if (string.IsNullOrWhiteSpace(caption))
-            return (fallbackName, null);
+            return (cleanFallbackName, filenameHash);
 
         var match = TelegramHashMarkerRegex.Match(caption);
         if (!match.Success)
-            return (caption.Trim(), null);
+            return (caption.Trim(), filenameHash);
 
         var name = caption[..match.Index].TrimEnd();
         if (string.IsNullOrWhiteSpace(name))
-            name = fallbackName;
+            name = cleanFallbackName;
 
         return (name, match.Groups["hash"].Value.ToLowerInvariant());
+    }
+
+    private static string AddHashMarkerToFileName(string fileName, string? hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash) || TelegramHashMarkerRegex.IsMatch(fileName))
+            return fileName;
+
+        var extension = Path.GetExtension(fileName);
+        var nameWithoutExtension = extension.Length > 0 ? fileName[..^extension.Length] : fileName;
+        return $"{nameWithoutExtension}_OG[{hash}]{extension}";
     }
 
     private static string BuildTelegramCaption(string fileName, string? hash) =>
@@ -556,7 +572,7 @@ public partial class MainWindow : Window
         parsed = default!;
         var match = Regex.Match(
             name,
-            @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?<ext>\..*)?$",
+            @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?:_OG\[(?<hash>[0-9a-fA-F]{64})\])?(?<ext>\..*)?$",
             RegexOptions.CultureInvariant);
         if (!match.Success
             || !Guid.TryParse(match.Groups["uuid"].Value, out var uuid)
@@ -1459,6 +1475,7 @@ public partial class MainWindow : Window
                         throw new FileNotFoundException("O arquivo local não foi encontrado.", sourcePath);
 
                     var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
+                    var telegramFileName = AddHashMarkerToFileName(uploadName, localHash);
                     queueItem.FileName = uploadName;
                     queueItem.Size = FormatFileSize(new FileInfo(sourcePath).Length);
                     queueItem.Status = "Enviando";
@@ -1484,7 +1501,7 @@ public partial class MainWindow : Window
                     {
                         file = uploadedFile,
                         mime_type = mimeType,
-                        attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = uploadName } }
+                        attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = telegramFileName } }
                     }, uploadCaption, Random.Shared.NextInt64());
                     if (entry.VerifyHash)
                     {
