@@ -407,14 +407,17 @@ public partial class MainWindow : Window
                     if (string.IsNullOrWhiteSpace(fileName))
                         fileName = $"Telegram_documento_{message.ID}";
 
+                    var captionData = ParseTelegramCaption(message.message, fileName);
                     CloudFiles.Add(new TelegramFileItem(
-                        fileName,
+                        captionData.Name,
                         currentFolder.Name,
                         FormatFileSize(document.size),
                         message.date.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
                         document.size,
                         message.ID,
-                        currentFolder.Peer));
+                        currentFolder.Peer,
+                        hasSavedHash: captionData.Hash is not null,
+                        savedHash: captionData.Hash));
                 }
             }
 
@@ -1605,7 +1608,7 @@ public partial class MainWindow : Window
 
                     var destination = entry.Destination?.Peer ?? new InputPeerSelf();
                     var destinationName = entry.Destination?.Name ?? "Telegram";
-                    var partLimit = GetEffectiveUploadPartSizeBytes(destinationName);
+                    var partLimit = GetEffectiveUploadPartSizeBytes(entry.Credential);
                     var sourceLength = new FileInfo(sourcePath).Length;
                     queueItem.FileName = uploadName;
                     queueItem.Size = FormatFileSize(sourceLength);
