@@ -137,6 +137,14 @@ public partial class MainWindow : Window
         VerifyDownloadHash = this.FindControl<CheckBox>(nameof(VerifyDownloadHash)) ?? throw new InvalidOperationException("Controle XAML não encontrado: VerifyDownloadHash");
         DownloadIntegrityWarning = this.FindControl<TextBlock>(nameof(DownloadIntegrityWarning)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadIntegrityWarning");
         DefaultDownloadFolder = this.FindControl<TextBox>(nameof(DefaultDownloadFolder)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DefaultDownloadFolder");
+        DownloadModalOverlay = this.FindControl<Grid>(nameof(DownloadModalOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadModalOverlay");
+        DownloadModalCard = this.FindControl<Border>(nameof(DownloadModalCard)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadModalCard");
+        DownloadModalSubtitle = this.FindControl<TextBlock>(nameof(DownloadModalSubtitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadModalSubtitle");
+        DownloadFileName = this.FindControl<TextBox>(nameof(DownloadFileName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadFileName");
+        DownloadFolderPath = this.FindControl<TextBox>(nameof(DownloadFolderPath)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadFolderPath");
+        DownloadVerifyHashCheckBox = this.FindControl<CheckBox>(nameof(DownloadVerifyHashCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadVerifyHashCheckBox");
+        DownloadModalStatus = this.FindControl<TextBlock>(nameof(DownloadModalStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadModalStatus");
+        StartDownloadButton = this.FindControl<Button>(nameof(StartDownloadButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StartDownloadButton");
         SettingsStatus = this.FindControl<TextBlock>(nameof(SettingsStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsStatus");
         StatusText = this.FindControl<TextBlock>(nameof(StatusText)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StatusText");
         TransferQueuePanel = this.FindControl<Border>(nameof(TransferQueuePanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueuePanel");
