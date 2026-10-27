@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
     private readonly List<UploadEntry> _pendingUploads = new();
+    private List<UploadDestination> _uploadDestinations = new() { new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self") };
     private bool _uploadIsFolder;
     private readonly Dictionary<string, string?> _folderParents = new(StringComparer.Ordinal);
     private const string TelegramFolderMarker = "_OD[Pasta]";
@@ -816,6 +817,8 @@ public partial class MainWindow : Window
             });
             if (files.Count == 0) return;
 
+            await RefreshUploadDestinationsAsync();
+            var defaultDestination = GetCurrentUploadDestination();
             _pendingUploads.Clear();
             _uploadIsFolder = false;
             bool lastZip = false;
@@ -832,6 +835,7 @@ public partial class MainWindow : Window
                     OriginalName = Path.GetFileName(file.Name),
                     UploadName = Path.GetFileName(file.Name),
                     Credential = "Telegram",
+                    Destination = defaultDestination,
                     VerifyHash = lastHash,
                     Compress = lastZip
                 });
@@ -865,6 +869,8 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(path))
                 throw new InvalidOperationException("O seletor retornou uma pasta sem caminho local.");
 
+            await RefreshUploadDestinationsAsync();
+            var defaultDestination = GetCurrentUploadDestination();
             _pendingUploads.Clear();
             _uploadIsFolder = true;
             _pendingUploads.Add(new UploadEntry
@@ -873,6 +879,7 @@ public partial class MainWindow : Window
                 OriginalName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
                 UploadName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) + ".zip",
                 Credential = "Telegram",
+                Destination = defaultDestination,
                 VerifyHash = VerifyUploadHash.IsChecked == true,
                 Compress = true,
                 IsFolder = true
@@ -898,21 +905,44 @@ public partial class MainWindow : Window
     {
         UploadItemsPanel.Children.Clear();
         UploadModalTitle.Text = _uploadIsFolder ? "Upload de pasta" : $"Upload de arquivos ({_pendingUploads.Count})";
-        var destinationName = _folderPath.LastOrDefault()?.Name ?? "Mensagens salvas";
-        UploadModalStatus.Text = $"Salvo em {destinationName}";
-        var credentials = new[] { "Telegram" }.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+        UploadModalStatus.Text = "";
+        var credentials = new[] { "Telegram" };
         foreach (var entry in _pendingUploads)
         {
+            entry.Destination ??= GetCurrentUploadDestination();
             var card = new Border { Classes = { "panel" }, Padding = new Thickness(14) };
             var fields = new StackPanel { Spacing = 9 };
-            var nameBox = new TextBox { Text = entry.UploadName, Watermark = "Nome no destino", Width = 560, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
+            var nameBox = new TextBox { Text = entry.UploadName, Watermark = "Nome no destino", Width = 420, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
             nameBox.TextChanged += (_, _) => entry.UploadName = nameBox.Text?.Trim() ?? "";
             fields.Children.Add(new TextBlock { Text = "Nome no destino", Classes = { "muted" }, FontSize = 11 });
             fields.Children.Add(nameBox);
+            var destinationFields = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+            var credentialField = new StackPanel { Spacing = 5 };
+            credentialField.Children.Add(new TextBlock { Text = "Credencial de destino", Classes = { "muted" }, FontSize = 11 });
             var credentialBox = new ComboBox { ItemsSource = credentials, SelectedItem = entry.Credential, MinWidth = 180 };
-            credentialBox.SelectionChanged += (_, _) => entry.Credential = credentialBox.SelectedItem?.ToString() ?? "Telegram";
-            fields.Children.Add(new TextBlock { Text = "Credencial de destino", Classes = { "muted" }, FontSize = 11 });
-            fields.Children.Add(credentialBox);
+            credentialField.Children.Add(credentialBox);
+            destinationFields.Children.Add(credentialField);
+            var folderField = new StackPanel { Spacing = 5 };
+            folderField.Children.Add(new TextBlock { Text = "Pasta de destino", Classes = { "muted" }, FontSize = 11 });
+            var folderBox = new ComboBox { ItemsSource = GetDestinationsForCredential(entry.Credential), SelectedItem = entry.Destination, MinWidth = 240, MaxWidth = 360 };
+            folderBox.SelectionChanged += (_, _) =>
+            {
+                if (folderBox.SelectedItem is UploadDestination destination)
+                    entry.Destination = destination;
+            };
+            credentialBox.SelectionChanged += (_, _) =>
+            {
+                entry.Credential = credentialBox.SelectedItem?.ToString() ?? "Telegram";
+                folderBox.ItemsSource = GetDestinationsForCredential(entry.Credential);
+                var current = entry.Destination;
+                entry.Destination = current is not null && _uploadDestinations.Any(destination => destination.Key == current.Key)
+                    ? _uploadDestinations.First(destination => destination.Key == current.Key)
+                    : GetCurrentUploadDestination();
+                folderBox.SelectedItem = entry.Destination;
+            };
+            folderField.Children.Add(folderBox);
+            destinationFields.Children.Add(folderField);
+            fields.Children.Add(destinationFields);
             var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
             var hashCheck = new CheckBox { Content = "Verificar hash", IsChecked = entry.VerifyHash };
             hashCheck.IsCheckedChanged += (_, _) => entry.VerifyHash = hashCheck.IsChecked == true;
@@ -1020,7 +1050,7 @@ public partial class MainWindow : Window
                             if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                         });
                     });
-                    var destination = _folderPath.LastOrDefault()?.Peer ?? new InputPeerSelf();
+                    var destination = entry.Destination?.Peer ?? new InputPeerSelf();
                     var mimeType = GetMimeType(uploadName);
                     await _telegramClient.Messages_SendMedia(destination, new InputMediaUploadedDocument
                     {
@@ -1097,12 +1127,105 @@ public partial class MainWindow : Window
         ".mp4" => "video/mp4", ".mp3" => "audio/mpeg", _ => "application/octet-stream"
     };
 
+    private async Task RefreshUploadDestinationsAsync()
+    {
+        var destinations = new List<UploadDestination>
+        {
+            new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self")
+        };
+
+        if (_telegramClient?.User is not null)
+        {
+            try
+            {
+                var dialogs = await _telegramClient.Messages_GetAllDialogs();
+                foreach (var dialog in dialogs.dialogs)
+                {
+                    var entity = dialogs.UserOrChat(dialog);
+                    if (entity is not (TL.Chat or Channel))
+                        continue;
+
+                    var chatName = entity switch
+                    {
+                        TL.Chat chat => chat.title,
+                        Channel channel => channel.title,
+                        _ => string.Empty
+                    };
+                    if (!chatName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
+                        continue;
+
+                    var key = GetTelegramPeerKey(entity);
+                    InputPeer? peer = entity switch
+                    {
+                        TL.Chat chat => new InputPeerChat(chat.id),
+                        Channel channel => new InputPeerChannel(channel.id, channel.access_hash),
+                        _ => null
+                    };
+                    if (key is null || peer is null || destinations.Any(item => item.Key == key))
+                        continue;
+
+                    var displayName = chatName[..^TelegramFolderMarker.Length];
+                    destinations.Add(new UploadDestination(displayName, peer, key));
+                }
+            }
+            catch
+            {
+                // A falha ao carregar as pastas não deve impedir o envio para Mensagens salvas.
+            }
+        }
+
+        foreach (var folder in _folderPath)
+        {
+            if (!destinations.Any(item => item.Key == folder.Key))
+                destinations.Add(new UploadDestination(folder.Name, folder.Peer, folder.Key));
+        }
+
+        _uploadDestinations = destinations;
+    }
+
+    private List<UploadDestination> GetDestinationsForCredential(string credential) =>
+        string.Equals(credential, "Telegram", StringComparison.OrdinalIgnoreCase)
+            ? _uploadDestinations
+            : new List<UploadDestination>();
+
+    private UploadDestination GetCurrentUploadDestination()
+    {
+        var currentFolder = _folderPath.LastOrDefault();
+        if (currentFolder is not null)
+        {
+            var knownFolder = _uploadDestinations.FirstOrDefault(destination => destination.Key == currentFolder.Key);
+            if (knownFolder is not null)
+                return knownFolder;
+
+            return new UploadDestination(currentFolder.Name, currentFolder.Peer, currentFolder.Key);
+        }
+
+        return _uploadDestinations.FirstOrDefault(destination => destination.Key == "self")
+            ?? new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self");
+    }
+
+    private sealed class UploadDestination
+    {
+        public UploadDestination(string name, InputPeer peer, string key)
+        {
+            Name = name;
+            Peer = peer;
+            Key = key;
+        }
+
+        public string Name { get; }
+        public InputPeer Peer { get; }
+        public string Key { get; }
+        public override string ToString() => Name;
+    }
+
     private sealed class UploadEntry
     {
         public string SourcePath { get; init; } = string.Empty;
         public string OriginalName { get; init; } = string.Empty;
         public string UploadName { get; set; } = string.Empty;
         public string Credential { get; set; } = "Telegram";
+        public UploadDestination? Destination { get; set; }
         public bool VerifyHash { get; set; }
         public bool Compress { get; set; }
         public bool IsFolder { get; init; }
