@@ -776,12 +776,16 @@ public partial class MainWindow : Window
         menu.Items.Add(new MenuItem
         {
             Header = "Upload de arquivo",
-            Command = new RelayUiCommand(() => _ = ChooseUploadFilesAsync())
+            // Defer the native picker until the context menu has closed.
+            Command = new RelayUiCommand(() =>
+                Dispatcher.UIThread.Post(async () => await ChooseUploadFilesAsync(), DispatcherPriority.Background))
         });
         menu.Items.Add(new MenuItem
         {
             Header = "Upload de pasta",
-            Command = new RelayUiCommand(() => _ = ChooseUploadFolderAsync())
+            // Defer the native picker until the context menu has closed.
+            Command = new RelayUiCommand(() =>
+                Dispatcher.UIThread.Post(async () => await ChooseUploadFolderAsync(), DispatcherPriority.Background))
         });
 
         menu.PlacementTarget = button;
@@ -792,56 +796,98 @@ public partial class MainWindow : Window
 
     private async Task ChooseUploadFilesAsync()
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        try
         {
-            Title = "Selecione um ou mais arquivos para upload",
-            AllowMultiple = true
-        });
-        if (files.Count == 0) return;
+            UploadModalTitle.Text = "Selecionar arquivos";
+            UploadItemsPanel.Children.Clear();
+            UploadModalStatus.Text = "Abrindo o seletor de arquivos do Windows...";
+            UploadModalOverlay.IsVisible = true;
+            await Dispatcher.UIThread.Yield(DispatcherPriority.Background);
+            UploadModalOverlay.IsVisible = false;
 
-        _pendingUploads.Clear();
-        _uploadIsFolder = false;
-        bool lastZip = false;
-        bool lastHash = VerifyUploadHash.IsChecked == true;
-        foreach (var file in files)
-        {
-            _pendingUploads.Add(new UploadEntry
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                SourcePath = file.TryGetLocalPath() ?? string.Empty,
-                OriginalName = Path.GetFileName(file.Name),
-                UploadName = Path.GetFileName(file.Name),
-                Credential = "Telegram",
-                VerifyHash = lastHash,
-                Compress = lastZip
+                Title = "Selecione um ou mais arquivos para upload",
+                AllowMultiple = true
             });
+            if (files.Count == 0) return;
+
+            _pendingUploads.Clear();
+            _uploadIsFolder = false;
+            bool lastZip = false;
+            bool lastHash = VerifyUploadHash.IsChecked == true;
+            foreach (var file in files)
+            {
+                var localPath = file.TryGetLocalPath();
+                if (string.IsNullOrWhiteSpace(localPath))
+                    throw new InvalidOperationException($"Não foi possível obter o caminho local do arquivo '{file.Name}'.");
+
+                _pendingUploads.Add(new UploadEntry
+                {
+                    SourcePath = localPath,
+                    OriginalName = Path.GetFileName(file.Name),
+                    UploadName = Path.GetFileName(file.Name),
+                    Credential = "Telegram",
+                    VerifyHash = lastHash,
+                    Compress = lastZip
+                });
+            }
+            BuildUploadModal();
         }
-        BuildUploadModal();
+        catch (Exception ex)
+        {
+            ShowUploadPickerError("arquivos", ex);
+        }
     }
 
     private async Task ChooseUploadFolderAsync()
     {
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        try
         {
-            Title = "Selecione uma pasta para compactar e enviar",
-            AllowMultiple = false
-        });
-        if (folders.Count == 0) return;
-        var path = folders[0].TryGetLocalPath();
-        if (string.IsNullOrWhiteSpace(path)) return;
+            UploadModalTitle.Text = "Selecionar pasta";
+            UploadItemsPanel.Children.Clear();
+            UploadModalStatus.Text = "Abrindo o seletor de pastas do Windows...";
+            UploadModalOverlay.IsVisible = true;
+            await Dispatcher.UIThread.Yield(DispatcherPriority.Background);
+            UploadModalOverlay.IsVisible = false;
 
-        _pendingUploads.Clear();
-        _uploadIsFolder = true;
-        _pendingUploads.Add(new UploadEntry
+            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Selecione uma pasta para compactar e enviar",
+                AllowMultiple = false
+            });
+            if (folders.Count == 0) return;
+            var path = folders[0].TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(path))
+                throw new InvalidOperationException("O seletor retornou uma pasta sem caminho local.");
+
+            _pendingUploads.Clear();
+            _uploadIsFolder = true;
+            _pendingUploads.Add(new UploadEntry
+            {
+                SourcePath = path,
+                OriginalName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                UploadName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) + ".zip",
+                Credential = "Telegram",
+                VerifyHash = VerifyUploadHash.IsChecked == true,
+                Compress = true,
+                IsFolder = true
+            });
+            BuildUploadModal();
+        }
+        catch (Exception ex)
         {
-            SourcePath = path,
-            OriginalName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            UploadName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) + ".zip",
-            Credential = "Telegram",
-            VerifyHash = VerifyUploadHash.IsChecked == true,
-            Compress = true,
-            IsFolder = true
-        });
-        BuildUploadModal();
+            ShowUploadPickerError("pastas", ex);
+        }
+    }
+
+    private void ShowUploadPickerError(string kind, Exception ex)
+    {
+        _pendingUploads.Clear();
+        UploadItemsPanel.Children.Clear();
+        UploadModalTitle.Text = $"Falha ao abrir o seletor de {kind}";
+        UploadModalStatus.Text = $"O Windows não conseguiu abrir o seletor de {kind}. Detalhes: {ex.GetType().Name}: {ex.Message}";
+        UploadModalOverlay.IsVisible = true;
     }
 
     private void BuildUploadModal()
