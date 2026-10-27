@@ -549,28 +549,30 @@ public partial class MainWindow : Window
     }
 
     private static readonly Regex TelegramHashMarkerRegex = new(
+        @"SHA-256_OD\[(?<hash>[0-9a-fA-F]{64})\]",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex LegacyTelegramHashMarkerRegex = new(
         @"_OG\[(?<hash>[0-9a-fA-F]{64})\]",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static (string Name, string? Hash) ParseTelegramCaption(string? caption, string fallbackName)
     {
-        var filenameMatch = TelegramHashMarkerRegex.Match(fallbackName);
-        var filenameHash = filenameMatch.Success
-            ? filenameMatch.Groups["hash"].Value.ToLowerInvariant()
-            : null;
-        var cleanFallbackName = TelegramHashMarkerRegex.Replace(fallbackName, string.Empty);
+        var filenameMatch = LegacyTelegramHashMarkerRegex.Match(fallbackName);
+        var filenameHash = filenameMatch.Success ? filenameMatch.Groups["hash"].Value.ToLowerInvariant() : null;
+        var cleanFallbackName = LegacyTelegramHashMarkerRegex.Replace(fallbackName, string.Empty);
 
         if (string.IsNullOrWhiteSpace(caption))
             return (cleanFallbackName, filenameHash);
 
         var match = TelegramHashMarkerRegex.Match(caption);
         if (!match.Success)
+            match = LegacyTelegramHashMarkerRegex.Match(caption);
+        if (!match.Success)
             return (caption.Trim(), filenameHash);
 
         var name = caption[..match.Index].TrimEnd();
         if (string.IsNullOrWhiteSpace(name))
             name = cleanFallbackName;
-
         return (name, match.Groups["hash"].Value.ToLowerInvariant());
     }
 
@@ -585,7 +587,7 @@ public partial class MainWindow : Window
     }
 
     private static string BuildTelegramCaption(string fileName, string? hash) =>
-        string.IsNullOrWhiteSpace(hash) ? fileName : $"{fileName} _OG[{hash}]";
+        string.IsNullOrWhiteSpace(hash) ? fileName : $"{fileName} SHA-256_OD[{hash}]";
 
     private static string RenameTelegramCaption(string? existingCaption, string fallbackName, string newName)
     {
@@ -594,8 +596,8 @@ public partial class MainWindow : Window
 
         var metadata = Regex.Match(
             existingCaption,
-            @"\s+_OG\[.*$",
-            RegexOptions.CultureInvariant);
+            @"\s+(?:SHA-256_OD|_OG)\[.*$",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
         return metadata.Success ? newName + metadata.Value : newName;
     }
 
@@ -648,7 +650,8 @@ public partial class MainWindow : Window
                 entry.File.MessageId,
                 entry.Parsed.PartNumber,
                 entry.Parsed.TotalParts,
-                entry.File.SizeBytes)).ToList();
+                entry.File.SizeBytes,
+                entry.File.SavedHash)).ToList();
             var partsLabel = incomplete
                 ? $"{entries.Count}/{expectedTotal} partes · incompleto"
                 : $"{expectedTotal} partes";
@@ -1106,10 +1109,25 @@ public partial class MainWindow : Window
             {
                 TelegramFilesStatus.Text = $"Baixando {succeeded + 1}/{files.Count}: {file.DisplayName}...";
                 var documents = await GetTelegramDocumentsForFileAsync(file);
+                var orderedParts = file.IsSplitFile ? file.Parts.OrderBy(part => part.PartNumber).ToList() : new List<TelegramFilePart>();
                 await using (var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
-                    foreach (var document in documents)
-                        await _telegramClient.DownloadFileAsync(document, output);
+                    for (var index = 0; index < documents.Count; index++)
+                    {
+                        var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
+                        var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
+                        var tempPartPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_download_{Guid.NewGuid():N}.part");
+                        try
+                        {
+                            await DownloadPartWithIntegrityCheckAsync(documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName);
+                            await using var partStream = File.OpenRead(tempPartPath);
+                            await partStream.CopyToAsync(output);
+                        }
+                        finally
+                        {
+                            try { if (File.Exists(tempPartPath)) File.Delete(tempPartPath); } catch { }
+                        }
+                    }
                 }
                 succeeded++;
             }
@@ -1585,14 +1603,17 @@ public partial class MainWindow : Window
                     if (!File.Exists(sourcePath))
                         throw new FileNotFoundException("O arquivo local não foi encontrado.", sourcePath);
 
-                    var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
-                    var telegramFileName = AddHashMarkerToFileName(uploadName, localHash);
+                    var destination = entry.Destination?.Peer ?? new InputPeerSelf();
+                    var destinationName = entry.Destination?.Name ?? "Telegram";
+                    var partLimit = GetEffectiveUploadPartSizeBytes(destinationName);
+                    var sourceLength = new FileInfo(sourcePath).Length;
                     queueItem.FileName = uploadName;
-                    queueItem.Size = FormatFileSize(new FileInfo(sourcePath).Length);
+                    queueItem.Size = FormatFileSize(sourceLength);
                     queueItem.Status = "Enviando";
-                    queueItem.PartDescription = "Enviando arquivo";
-                    UploadModalStatus.Text = $"Enviando {uploadName} para o Telegram...";
-                    var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, (transmitted, totalSize) =>
+                    queueItem.PartDescription = "Preparando partes";
+                    UploadModalStatus.Text = $"Preparando {uploadName} para envio...";
+
+                    void ReportProgress(long transmitted, long totalSize)
                     {
                         var progress = totalSize > 0 ? Math.Clamp((double)transmitted / totalSize * 100d, 0d, 100d) : 0d;
                         Dispatcher.UIThread.Post(() =>
@@ -1604,21 +1625,44 @@ public partial class MainWindow : Window
                             UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}";
                             if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                         });
-                    });
-                    var destination = entry.Destination?.Peer ?? new InputPeerSelf();
-                    var mimeType = GetMimeType(uploadName);
-                    var uploadCaption = BuildTelegramCaption(uploadName, entry.VerifyHash ? localHash : null);
-                    await _telegramClient.Messages_SendMedia(destination, new InputMediaUploadedDocument
+                    }
+
+                    if (sourceLength > partLimit)
                     {
-                        file = uploadedFile,
-                        mime_type = mimeType,
-                        attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = telegramFileName } }
-                    }, uploadCaption, Random.Shared.NextInt64());
-                    if (entry.VerifyHash)
+                        var splitUuid = Guid.NewGuid().ToString();
+                        var partPaths = await SplitFileIntoTemporaryPartsAsync(sourcePath, partLimit, splitUuid);
+                        try
+                        {
+                            for (var index = 0; index < partPaths.Count; index++)
+                            {
+                                var partNumber = index + 1;
+                                var partName = BuildSplitPartName(uploadName, splitUuid, partNumber, partPaths.Count);
+                                var partHash = await ComputeSha256Async(partPaths[index]);
+                                queueItem.PartDescription = $"Parte {partNumber}/{partPaths.Count}";
+                                UploadModalStatus.Text = $"Enviando parte {partNumber}/{partPaths.Count}: {partName}";
+                                await UploadTelegramMediaAsync(partPaths[index], partName, BuildTelegramCaption(partName, partHash),
+                                    destination, GetMimeType(uploadName), ReportProgress);
+                                SaveIntegrityRecord(splitUuid, partNumber, partName, destinationName, partHash);
+                            }
+                        }
+                        finally
+                        {
+                            foreach (var partPath in partPaths)
+                                try { File.Delete(partPath); } catch { }
+                        }
+                    }
+                    else
                     {
-                        var finalHash = await ComputeSha256Async(sourcePath);
-                        if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
-                            throw new IOException("A verificação local do hash falhou.");
+                        var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
+                        await UploadTelegramMediaAsync(sourcePath, uploadName, BuildTelegramCaption(uploadName, localHash),
+                            destination, GetMimeType(uploadName), ReportProgress);
+                        if (entry.VerifyHash)
+                        {
+                            var finalHash = await ComputeSha256Async(sourcePath);
+                            if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
+                                throw new IOException("A verificação local do hash falhou.");
+                            SaveIntegrityRecord(Guid.NewGuid().ToString(), 1, uploadName, destinationName, localHash!);
+                        }
                     }
                     queueItem.Percentage = 100;
                     queueItem.ProgressLabel = "Concluído";
@@ -1667,6 +1711,111 @@ public partial class MainWindow : Window
         {
             if (button is not null) button.IsEnabled = true;
         }
+    }
+
+    private long GetEffectiveUploadPartSizeBytes(string connectionName)
+    {
+        const long conservativeTelegramLimit = 1900L * 1024 * 1024;
+        if (_uploadLimits.TryGetValue(connectionName, out var configured)
+            && long.TryParse(configured, out var megabytes) && megabytes > 0)
+            return megabytes * 1024L * 1024L;
+        return conservativeTelegramLimit;
+    }
+
+    private static string BuildSplitPartName(string originalName, string uuid, int partNumber, int totalParts)
+    {
+        var extension = Path.GetExtension(originalName);
+        var stem = extension.Length > 0 ? originalName[..^extension.Length] : originalName;
+        return $"{stem}_OD[{uuid}_{partNumber}-{totalParts}]{extension}";
+    }
+
+    private static async Task<List<string>> SplitFileIntoTemporaryPartsAsync(string sourcePath, long partSize, string uuid)
+    {
+        var paths = new List<string>();
+        await using var input = File.OpenRead(sourcePath);
+        var buffer = new byte[1024 * 1024];
+        try
+        {
+            var partNumber = 0;
+            while (input.Position < input.Length)
+            {
+                partNumber++;
+                var path = Path.Combine(Path.GetTempPath(), $"OmniDrive_{uuid}_{partNumber}.part");
+                paths.Add(path);
+                await using var output = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+                var remaining = Math.Min(partSize, input.Length - input.Position);
+                while (remaining > 0)
+                {
+                    var read = await input.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, remaining)));
+                    if (read == 0) throw new EndOfStreamException("O arquivo de origem mudou durante a divisão.");
+                    await output.WriteAsync(buffer.AsMemory(0, read));
+                    remaining -= read;
+                }
+            }
+            return paths;
+        }
+        catch
+        {
+            foreach (var path in paths) try { File.Delete(path); } catch { }
+            throw;
+        }
+    }
+
+    private async Task UploadTelegramMediaAsync(string sourcePath, string telegramFileName, string caption,
+        InputPeer destination, string mimeType, Action<long, long> progress)
+    {
+        if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
+        var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, progress);
+        await _telegramClient.Messages_SendMedia(destination, new InputMediaUploadedDocument
+        {
+            file = uploadedFile,
+            mime_type = mimeType,
+            attributes = new TL.DocumentAttribute[] { new DocumentAttributeFilename { file_name = telegramFileName } }
+        }, caption, Random.Shared.NextInt64());
+    }
+
+    private sealed record IntegrityRecord(string Uuid, int PartNumber, string FileName, string Destination, string Sha256, DateTimeOffset SavedAt);
+
+    private void SaveIntegrityRecord(string uuid, int partNumber, string fileName, string destination, string hash)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(_settingsPath)!;
+            Directory.CreateDirectory(directory);
+            var databasePath = Path.Combine(directory, "integrity.json");
+            var records = File.Exists(databasePath)
+                ? JsonSerializer.Deserialize<List<IntegrityRecord>>(File.ReadAllText(databasePath)) ?? new List<IntegrityRecord>()
+                : new List<IntegrityRecord>();
+            records.RemoveAll(record => record.Uuid == uuid && record.PartNumber == partNumber);
+            records.Add(new IntegrityRecord(uuid, partNumber, fileName, destination, hash, DateTimeOffset.UtcNow));
+            File.WriteAllText(databasePath, JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"O arquivo foi enviado, mas não foi possível registrar o hash localmente: {ex.Message}";
+        }
+    }
+
+    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName)
+    {
+        if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
+        var verify = VerifyDownloadHash.IsChecked == true;
+        if (verify && string.IsNullOrWhiteSpace(expectedHash))
+            throw new InvalidDataException($"Não há hash SHA-256 de referência para a parte {partNumber} de “{displayName}”. Desative a verificação para baixar sem validar.");
+
+        for (var attempt = 1; attempt <= (verify ? 2 : 1); attempt++)
+        {
+            await using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                await _telegramClient.DownloadFileAsync(document, output);
+            if (!verify) return;
+
+            var actualHash = await ComputeSha256Async(destinationPath);
+            if (string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase)) return;
+            try { File.Delete(destinationPath); } catch { }
+            if (attempt == 1)
+                TelegramFilesStatus.Text = $"Hash divergente na parte {partNumber} de “{displayName}”. Baixando novamente somente essa parte...";
+        }
+        throw new InvalidDataException($"A parte {partNumber} de “{displayName}” falhou na verificação SHA-256 após uma nova tentativa.");
     }
 
     private static async Task<string> ComputeSha256Async(string path)
