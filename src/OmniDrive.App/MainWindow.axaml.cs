@@ -1782,8 +1782,11 @@ public partial class MainWindow : Window
                         }
                         else
                         {
-                            using var archive = ZipFile.Open(tempPath, ZipArchiveMode.Create);
-                            archive.CreateEntryFromFile(sourcePath, Path.GetFileName(sourcePath), CompressionLevel.Optimal);
+                            await Task.Run(() =>
+                            {
+                                using var archive = ZipFile.Open(tempPath, ZipArchiveMode.Create);
+                                archive.CreateEntryFromFile(sourcePath, Path.GetFileName(sourcePath), CompressionLevel.Optimal);
+                            });
                         }
                         sourcePath = tempPath;
                         if (!uploadName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) uploadName += ".zip";
@@ -1798,7 +1801,8 @@ public partial class MainWindow : Window
                     var sourceLength = new FileInfo(sourcePath).Length;
                     queueItem.FileName = uploadName;
                     queueItem.Size = FormatFileSize(sourceLength);
-                    queueItem.Status = "Enviando";
+                    queueItem.Status = "Em andamento";
+                    queueItem.ProgressLabel = "Preparando partes";
                     queueItem.PartDescription = "Preparando partes";
                     UploadModalStatus.Text = $"Preparando {uploadName} para envio...";
 
@@ -1810,7 +1814,7 @@ public partial class MainWindow : Window
                             queueItem.Percentage = progress;
                             queueItem.ProgressLabel = $"Enviando · {progress:0}%";
                             queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
-                            queueItem.Status = "Enviando";
+                            queueItem.Status = "Em andamento";
                             UploadModalStatus.Text = $"Enviando {uploadName}: {progress:P0}";
                             if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
                         });
@@ -1865,14 +1869,18 @@ public partial class MainWindow : Window
                 catch (Exception ex)
                 {
                     uploadFailed = true;
-                    queueItem.Status = "Falhou";
-                    queueItem.ProgressLabel = "Falhou";
-                    queueItem.PartDescription = ex.Message;
+                    var explanation = ExplainTransferError(ex, "enviar", entry.Credential);
+                    queueItem.Status = "Falha";
+                    queueItem.ProgressLabel = explanation;
+                    queueItem.PartDescription = $"Falha: {queueItem.PartDescription}";
+                    queueItem.CanRetry = false;
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - transferStarted);
                     UpdateTransferQueueDisplay();
                     if (ReferenceEquals(_selectedTransfer, queueItem)) RefreshTransferDetails(queueItem);
-                    UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {ex.Message}";
+                    UploadModalStatus.Text = $"Falha ao enviar “{entry.UploadName}”: {explanation}";
                     TelegramFilesStatus.Text = UploadModalStatus.Text;
+                    if (explanation.Contains("autenticação", StringComparison.OrdinalIgnoreCase))
+                        MarkTelegramDisconnected(explanation);
                     break;
                 }
                 finally
@@ -1893,8 +1901,11 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            UploadModalStatus.Text = $"Não foi possível concluir o upload: {ex.Message}";
+            var explanation = ExplainTransferError(ex, "concluir o upload", "Telegram");
+            UploadModalStatus.Text = $"Não foi possível concluir o upload: {explanation}";
             TelegramFilesStatus.Text = UploadModalStatus.Text;
+            if (explanation.Contains("autenticação", StringComparison.OrdinalIgnoreCase))
+                MarkTelegramDisconnected(explanation);
         }
         finally
         {
