@@ -934,6 +934,20 @@ public partial class MainWindow : Window
         }
 
         var verifyHash = DownloadVerifyHashCheckBox.IsChecked == true;
+        try
+        {
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!);
+            if (drive.IsReady && file.SizeBytes > 0 && drive.AvailableFreeSpace < file.SizeBytes)
+            {
+                DownloadModalStatus.Text = $"Espaço insuficiente: o arquivo precisa de aproximadamente {FormatFileSize(file.SizeBytes)} e há {FormatFileSize(drive.AvailableFreeSpace)} livres.";
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
+        {
+            DownloadModalStatus.Text = "Não foi possível verificar o espaço livre da pasta escolhida. Confirme as permissões e o espaço disponível antes de continuar.";
+            return;
+        }
         var outputPath = Path.Combine(folder, fileName);
         if (File.Exists(outputPath))
         {
@@ -962,7 +976,7 @@ public partial class MainWindow : Window
         var tempOutputPath = outputPath + $".{Guid.NewGuid():N}.download";
         try
         {
-            queueItem.Status = "Baixando";
+            queueItem.Status = "Em andamento";
             queueItem.ProgressLabel = "Localizando arquivo";
             queueItem.Percentage = 3;
             var documents = await GetTelegramDocumentsForFileAsync(file);
@@ -1016,6 +1030,7 @@ public partial class MainWindow : Window
             try { if (Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
             queueItem.Percentage = 100;
             queueItem.Status = "Concluído";
+            queueItem.CanRetry = false;
             queueItem.ProgressLabel = "Download concluído";
             queueItem.PartDescription = "Concluído";
             queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
@@ -1026,10 +1041,21 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             try { if (File.Exists(tempOutputPath)) File.Delete(tempOutputPath); } catch { }
+            var explanation = ExplainTransferError(ex, "baixar", file.ChatName);
             queueItem.Status = "Falha";
-            queueItem.ProgressLabel = ex.Message;
+            queueItem.ProgressLabel = explanation;
+            queueItem.PartDescription = file.IsSplitFile ? $"Falha no conjunto · {queueItem.PartDescription}" : "Falha no arquivo";
+            queueItem.CanRetry = true;
+            queueItem.RetryAction = () =>
+            {
+                DownloadTelegramFileForItem(file);
+                return Task.CompletedTask;
+            };
             queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
-            TelegramFilesStatus.Text = $"Não foi possível baixar {file.DisplayName}: {ex.Message}";
+            TelegramFilesStatus.Text = $"Não foi possível baixar “{file.DisplayName}”: {explanation}";
+            DownloadModalStatus.Text = TelegramFilesStatus.Text;
+            if (explanation.Contains("autenticação", StringComparison.OrdinalIgnoreCase))
+                MarkTelegramDisconnected(explanation);
         }
         finally
         {
