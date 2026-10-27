@@ -813,13 +813,13 @@ public partial class MainWindow : Window
         });
         menu.Items.Add(new MenuItem
         {
-            Header = "Renomear no Telegram…",
+            Header = "Renomear…",
             Command = new RelayUiCommand(() => _ = RenameTelegramFileAsync(file))
         });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem
         {
-            Header = "Excluir do Telegram…",
+            Header = "Excluir…",
             Command = new RelayUiCommand(() => _ = DeleteTelegramFileAsync(file))
         });
 
@@ -848,7 +848,7 @@ public partial class MainWindow : Window
         };
         var dialog = new Window
         {
-            Title = "Renomear arquivo no Telegram",
+            Title = "Renomear arquivo",
             Width = 460,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
@@ -860,8 +860,8 @@ public partial class MainWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = file.IsSplitFile
-                ? "A caption de cada parte será atualizada, preservando os metadados individuais. Os arquivos não serão baixados nem reenviados."
-                : "A caption da mensagem existente será atualizada. O arquivo não será baixado nem reenviado.",
+                ? "O nome de cada parte será atualizado no serviço de origem, preservando os metadados individuais. Os arquivos não serão baixados nem reenviados."
+                : "O nome será atualizado no serviço de origem. O arquivo não será baixado nem reenviado.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Foreground = Avalonia.Media.Brush.Parse("#F4F0FA")
         });
@@ -892,7 +892,7 @@ public partial class MainWindow : Window
         }
         if (!await ConfirmActionAsync(
                 "Confirmar renomeação",
-                $"A caption da mensagem será alterada para “{newName}”. Nenhum arquivo será reenviado. Continuar?"))
+                $"O nome do arquivo será alterado para “{newName}” no serviço de origem. Nenhum arquivo será reenviado. Continuar?"))
             return;
 
         try
