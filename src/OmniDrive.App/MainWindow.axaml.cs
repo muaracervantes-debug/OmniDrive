@@ -158,6 +158,10 @@ public partial class MainWindow : Window
         TelegramLoginInput = this.FindControl<TextBox>(nameof(TelegramLoginInput)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramLoginInput");
         TelegramConnectButton = this.FindControl<Button>(nameof(TelegramConnectButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectButton");
         TelegramStatus = this.FindControl<TextBlock>(nameof(TelegramStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramStatus");
+        UploadModalOverlay = this.FindControl<Grid>(nameof(UploadModalOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadModalOverlay");
+        UploadModalTitle = this.FindControl<TextBlock>(nameof(UploadModalTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadModalTitle");
+        UploadItemsPanel = this.FindControl<StackPanel>(nameof(UploadItemsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadItemsPanel");
+        UploadModalStatus = this.FindControl<TextBlock>(nameof(UploadModalStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadModalStatus");
     }
 
     private void Overview_Click(object? sender, RoutedEventArgs e)
