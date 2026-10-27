@@ -326,7 +326,6 @@
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="5">
             <TextBlock x:Name="UploadModalTitle" Text="Upload de arquivos" FontSize="22" FontWeight="Bold"/>
-            <TextBlock Text="Configure individualmente o nome, a credencial, a verificação de hash e a compactação de cada arquivo." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
           </StackPanel>
           <Button Grid.Column="1" Classes="ghost" Content="×" Click="CancelUpload_Click"/>
         </Grid>
