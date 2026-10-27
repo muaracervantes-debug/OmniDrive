@@ -169,46 +169,116 @@ public partial class MainWindow : Window
     }
 
 
-    private void CloudFilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void CloudFilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        RefreshSelectedItemDetails();
+        await RefreshSelectedItemDetailsAsync();
     }
 
-    private void RefreshSelectedItemDetails()
+    private async Task RefreshSelectedItemDetailsAsync()
     {
         var item = CloudFilesList.SelectedItems.OfType<TelegramFileItem>().LastOrDefault()
             ?? CloudFilesList.SelectedItem as TelegramFileItem;
+        var unknown = "Informação não disponivel";
+        var sizeText = item is null ? unknown : !item.IsFolder && item.SizeBytes > 0
+            ? FormatFileSize(item.SizeBytes)
+            : item.IsFolder ? "Calculando..." : (!string.IsNullOrWhiteSpace(item.SizeLabel) ? item.SizeLabel : unknown);
+
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["DetailName"] = item?.DisplayName ?? "Informação não disponivel",
-            ["DetailSize"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Pasta" : (!string.IsNullOrWhiteSpace(item.SizeLabel) ? item.SizeLabel : "Informação não disponivel"),
-            ["DetailType"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Pasta" : (Path.GetExtension(item.DisplayName) is { Length: > 0 } extension ? extension : "Arquivo sem extensão"),
-            ["DetailModified"] = item is not null && !string.IsNullOrWhiteSpace(item.DateLabel) && item.MessageDate != DateTimeOffset.MinValue
-                ? item.MessageDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                : "Informação não disponivel",
-            ["DetailService"] = item is null ? "Informação não disponivel" : "Telegram",
-            ["DetailCredential"] = item is null ? "Informação não disponivel" : _telegramClient?.User is not null ? (_telegramClient.User.username ?? _telegramClient.User.first_name ?? "Telegram conectado") : "Informação não disponivel",
-            ["DetailFolder"] = item is null ? "Informação não disponivel" : (_folderPath.LastOrDefault()?.Name ?? "Raiz do Drive"),
-            ["DetailParts"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Não aplicável" : item.IsSplitFile
+            ["DetailName"] = item?.DisplayName ?? unknown,
+            ["DetailSize"] = sizeText,
+            ["DetailExtension"] = item is null ? unknown : item.IsFolder ? unknown : (Path.GetExtension(item.DisplayName) is { Length: > 0 } extension ? extension : "Sem extensão"),
+            ["DetailCreated"] = unknown,
+            ["DetailModified"] = item is not null && item.MessageDate != DateTimeOffset.MinValue
+                ? item.MessageDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : unknown,
+            ["DetailService"] = item is null ? unknown : "Telegram",
+            ["DetailCredential"] = item is null ? unknown : _telegramClient?.User is not null ? (_telegramClient.User.username ?? _telegramClient.User.first_name ?? "Telegram conectado") : unknown,
+            ["DetailFolder"] = item is null ? unknown : (_folderPath.LastOrDefault()?.Name ?? "Raiz do Drive"),
+            ["DetailParts"] = item is null ? unknown : item.IsFolder ? "Não aplicável" : item.IsSplitFile
                 ? $"{item.Parts.Count} parte(s) encontrada(s) de {item.ExpectedPartCount}" + (item.IsIncomplete ? " — incompleto" : "")
                 : "1 parte (arquivo único)",
-            ["DetailIntegrity"] = item is null ? "Informação não disponivel" : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
-                ? $"Hash SHA-256 salvo: {item.SavedHash}"
-                : "Informação não disponivel"
+            ["DetailIntegrity"] = item is null ? unknown : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
+                ? $"Hash SHA-256 salvo: {item.SavedHash}" : unknown
         };
 
         foreach (var pair in values)
-        {
             if (this.FindControl<TextBlock>(pair.Key) is { } valueBlock)
                 valueBlock.Text = pair.Value;
+
+        if (item is not null && item.IsFolder)
+        {
+            try
+            {
+                var bytes = await CalculateFolderSizeAsync(item.FolderKey);
+                if (CloudFilesList.SelectedItem == item || CloudFilesList.SelectedItems.Contains(item))
+                    if (this.FindControl<TextBlock>("DetailSize") is { } sizeBlock)
+                        sizeBlock.Text = FormatFileSize(bytes);
+            }
+            catch
+            {
+                if (this.FindControl<TextBlock>("DetailSize") is { } sizeBlock)
+                    sizeBlock.Text = unknown;
+            }
         }
 
         if (this.FindControl<TextBlock>("DetailSelectionTitle") is { } title)
             title.Text = item?.DisplayName ?? "Nenhum item selecionado";
         if (this.FindControl<TextBlock>("DetailSelectionDescription") is { } description)
-            description.Text = item is null
-                ? "Selecione um arquivo ou pasta para ver os detalhes."
-                : item.IsFolder ? "Detalhes da pasta selecionada." : "Detalhes do arquivo selecionado.";
+            description.Text = item is null ? "Selecione um arquivo ou pasta para ver os detalhes."
+                : item.IsFolder ? "Pasta selecionada." : "Arquivo selecionado.";
+    }
+
+    private async Task<long> CalculateFolderSizeAsync(string? rootFolderKey)
+    {
+        if (_telegramClient is null || string.IsNullOrWhiteSpace(rootFolderKey))
+            return 0;
+
+        var dialogs = await _telegramClient.Messages_GetAllDialogs();
+        var folderPeers = new Dictionary<string, InputPeer>(StringComparer.Ordinal);
+        foreach (var dialog in dialogs.dialogs)
+        {
+            var entity = dialogs.UserOrChat(dialog);
+            if (entity is not (TL.Chat or Channel))
+                continue;
+            var chatName = entity switch
+            {
+                TL.Chat chat => chat.title,
+                Channel channel => channel.title,
+                _ => string.Empty
+            };
+            if (!chatName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
+                continue;
+            var key = GetTelegramPeerKey(entity);
+            InputPeer? peer = entity switch
+            {
+                TL.Chat chat => new InputPeerChat(chat.id),
+                Channel channel => new InputPeerChannel(channel.id, channel.access_hash),
+                _ => null
+            };
+            if (key is not null && peer is not null)
+                folderPeers[key] = peer;
+        }
+
+        var total = 0L;
+        var pending = new Stack<string>();
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        pending.Push(rootFolderKey);
+        while (pending.Count > 0)
+        {
+            var folderKey = pending.Pop();
+            if (!visited.Add(folderKey) || !folderPeers.TryGetValue(folderKey, out var peer))
+                continue;
+
+            var history = await _telegramClient.Messages_GetHistory(peer, limit: 100);
+            foreach (var message in history.Messages.OfType<Message>())
+                if (message.media is MessageMediaDocument mediaDocument && mediaDocument.document is Document document)
+                    total += document.size;
+
+            foreach (var child in folderPeers.Keys)
+                if (_folderParents.TryGetValue(child, out var parent) && string.Equals(parent, folderKey, StringComparison.Ordinal))
+                    pending.Push(child);
+        }
+        return total;
     }
 
     private void Overview_Click(object? sender, RoutedEventArgs e)
