@@ -2913,12 +2913,30 @@ public partial class MainWindow : Window
             TransferQueueEmpty.IsVisible = TransferQueue.Count == 0;
     }
 
+    private async void RetryTransfer_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: TransferQueueItem item } && item.CanRetry && item.RetryAction is not null)
+        {
+            item.CanRetry = false;
+            await item.RetryAction();
+        }
+    }
+
     private void RemoveTransfer_Click(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: TransferQueueItem item })
         {
-            // The transfer engine will attach its cancellation token here when implemented.
-            item.CancelRequested = true;
+            if (item.Status == "Aguardando")
+            {
+                item.Status = "Cancelado";
+                item.ProgressLabel = "Cancelado antes de iniciar";
+            }
+            else if (item.Status == "Em andamento")
+            {
+                item.ProgressLabel = "A transferência está em andamento e não pode ser interrompida com segurança nesta versão.";
+                if (ReferenceEquals(_selectedTransfer, item)) RefreshTransferDetails(item);
+                return;
+            }
             TransferQueue.Remove(item);
             if (ReferenceEquals(_selectedTransfer, item))
                 TransferDetailsOverlay.IsVisible = false;
