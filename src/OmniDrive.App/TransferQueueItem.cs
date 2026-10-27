@@ -17,6 +17,8 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     private string _size = "—";
     private string _status = "Aguardando";
     private bool _cancelRequested;
+    private bool _canRetry;
+    public Func<Task>? RetryAction { get; set; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -32,6 +34,7 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     public string Size { get => _size; set => SetField(ref _size, value); }
     public string Status { get => _status; set => SetField(ref _status, value); }
     public bool CancelRequested { get => _cancelRequested; set => SetField(ref _cancelRequested, value); }
+    public bool CanRetry { get => _canRetry; set => SetField(ref _canRetry, value); }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
