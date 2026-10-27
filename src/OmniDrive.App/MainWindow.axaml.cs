@@ -24,6 +24,8 @@ namespace OmniDrive.App;
 public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
+    private string? _defaultDownloadFolder;
+    private TelegramFileItem? _pendingDownloadFile;
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
     private readonly List<UploadEntry> _pendingUploads = new();
@@ -803,79 +805,186 @@ public partial class MainWindow : Window
         ShowTelegramFileOptions(file);
     }
 
-    private async void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
+    private void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: TelegramFileItem file } || file.IsFolder)
             return;
-
         if (_telegramClient is null)
         {
             TelegramFilesStatus.Text = "Conecte o Telegram antes de baixar arquivos.";
             return;
         }
 
+        _pendingDownloadFile = file;
+        DownloadFileName.Text = file.DisplayName;
+        var folder = !string.IsNullOrWhiteSpace(_defaultDownloadFolder) && Directory.Exists(_defaultDownloadFolder)
+            ? _defaultDownloadFolder
+            : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        DownloadFolderPath.Text = folder;
+        DownloadVerifyHashCheckBox.IsChecked = VerifyDownloadHash.IsChecked == true;
+        DownloadModalSubtitle.Text = file.IsSplitFile
+            ? $"Arquivo dividido em {file.ExpectedPartCount} partes. O OmniDrive verificará a disponibilidade antes de reconstruí-lo."
+            : "O arquivo será baixado do serviço de origem.";
+        DownloadModalStatus.Text = file.IsSplitFile && file.IsIncomplete
+            ? $"Aviso: conjunto marcado como incompleto ({file.PartsLabel}). O download só será concluído se todas as partes forem encontradas."
+            : "";
+        DownloadModalOverlay.IsVisible = true;
+        DownloadFileName.Focus();
+    }
+
+    private async void ChooseDownloadFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Escolha a pasta para salvar o arquivo",
+            AllowMultiple = false
+        });
+        if (folders.Count == 0) return;
+        var path = folders[0].TryGetLocalPath();
+        if (!string.IsNullOrWhiteSpace(path)) DownloadFolderPath.Text = path;
+    }
+
+    private async void SelectDefaultDownloadFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Definir pasta de download padrão",
+            AllowMultiple = false
+        });
+        if (folders.Count == 0) return;
+        var path = folders[0].TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        _defaultDownloadFolder = path;
+        DefaultDownloadFolder.Text = path;
+        SaveSettings();
+    }
+
+    private void ClearDefaultDownloadFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        _defaultDownloadFolder = null;
+        DefaultDownloadFolder.Text = "";
+        SaveSettings();
+    }
+
+    private void DownloadModalOverlay_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source == DownloadModalOverlay) CancelDownload_Click(sender, e);
+    }
+
+    private void DownloadModalCard_PointerPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
+
+    private void CancelDownload_Click(object? sender, RoutedEventArgs e)
+    {
+        DownloadModalOverlay.IsVisible = false;
+        _pendingDownloadFile = null;
+    }
+
+    private async void StartDownload_Click(object? sender, RoutedEventArgs e)
+    {
+        var file = _pendingDownloadFile;
+        if (file is null || _telegramClient is null) return;
+        var fileName = (DownloadFileName.Text ?? "").Trim();
+        var folder = (DownloadFolderPath.Text ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(fileName) || fileName != Path.GetFileName(fileName)
+            || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            DownloadModalStatus.Text = "Informe um nome de arquivo válido, sem caminho ou caracteres inválidos.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            DownloadModalStatus.Text = "Escolha uma pasta de destino válida.";
+            return;
+        }
         if (file.IsSplitFile && file.IsIncomplete)
         {
-            TelegramFilesStatus.Text = $"Não é possível reconstruir “{file.DisplayName}”: conjunto incompleto ({file.PartsLabel}).";
+            DownloadModalStatus.Text = $"Não é possível reconstruir o arquivo: faltam partes ({file.PartsLabel}).";
             return;
         }
 
+        var verifyHash = DownloadVerifyHashCheckBox.IsChecked == true;
+        var outputPath = Path.Combine(folder, fileName);
+        if (File.Exists(outputPath))
+        {
+            DownloadModalStatus.Text = "Já existe um arquivo com esse nome nessa pasta. Escolha outro nome para evitar sobrescrever dados.";
+            return;
+        }
+
+        var queueItem = new TransferQueueItem
+        {
+            Icon = "⇩",
+            FileName = fileName,
+            PartDescription = file.IsSplitFile ? $"0/{file.ExpectedPartCount} partes" : "Preparando download",
+            Service = "Telegram",
+            Credential = file.ChatName,
+            Status = "Aguardando",
+            ProgressLabel = "Aguardando",
+            Size = file.SizeLabel,
+            Elapsed = "0 s"
+        };
+        TransferQueue.Add(queueItem);
+        TransferQueuePanel.IsVisible = true;
+        UpdateTransferQueueDisplay();
+        DownloadModalOverlay.IsVisible = false;
+        StartDownloadButton.IsEnabled = false;
+        var started = DateTime.UtcNow;
+        var tempOutputPath = outputPath + $".{Guid.NewGuid():N}.download";
         try
         {
-            var saveFile = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            queueItem.Status = "Baixando";
+            queueItem.ProgressLabel = "Localizando arquivo";
+            queueItem.Percentage = 3;
+            var documents = await GetTelegramDocumentsForFileAsync(file);
+            var orderedParts = file.IsSplitFile ? file.Parts.OrderBy(part => part.PartNumber).ToList() : new List<TelegramFilePart>();
+            await using (var output = new FileStream(tempOutputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                Title = file.IsSplitFile ? "Reconstruir arquivo dividido" : "Salvar arquivo do Telegram",
-                SuggestedFileName = file.DisplayName
-            });
-            if (saveFile is null)
-                return;
-
-            TelegramFilesStatus.Text = file.IsSplitFile
-                ? $"Localizando as {file.ExpectedPartCount} partes de {file.DisplayName}..."
-                : $"Preparando o download de {file.Name}...";
-
-            var documents = new List<Document>();
-            if (file.IsSplitFile)
-            {
-                foreach (var part in file.Parts.OrderBy(part => part.PartNumber))
+                for (var index = 0; index < documents.Count; index++)
                 {
-                    var history = await _telegramClient.Messages_GetHistory(part.Peer, limit: 100);
-                    var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == part.MessageId);
-                    if (message?.media is not MessageMediaDocument { document: Document document })
+                    var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
+                    var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
+                    var tempPartPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_download_{Guid.NewGuid():N}.part");
+                    try
                     {
-                        TelegramFilesStatus.Text = $"A parte {part.PartNumber}/{part.TotalParts} de “{file.DisplayName}” não foi encontrada no Telegram. O download foi cancelado.";
-                        return;
+                        queueItem.PartDescription = file.IsSplitFile ? $"Parte {partNumber}/{file.ExpectedPartCount}" : "Arquivo único";
+                        queueItem.ProgressLabel = file.IsSplitFile
+                            ? $"Baixando parte {partNumber}/{file.ExpectedPartCount}"
+                            : "Baixando arquivo";
+                        queueItem.Percentage = Math.Min(95, 5 + (double)index / Math.Max(1, documents.Count) * 90);
+                        await DownloadPartWithIntegrityCheckAsync(documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName, verifyHash);
+                        await using var partStream = File.OpenRead(tempPartPath);
+                        await partStream.CopyToAsync(output);
                     }
-                    documents.Add(document);
+                    finally
+                    {
+                        try { if (File.Exists(tempPartPath)) File.Delete(tempPartPath); } catch { }
+                    }
+                    queueItem.Percentage = Math.Min(98, (double)(index + 1) / documents.Count * 98);
+                    queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
                 }
             }
-            else
-            {
-                var history = await _telegramClient.Messages_GetHistory(file.Peer, limit: 100);
-                var message = history.Messages.OfType<Message>().FirstOrDefault(item => item.ID == file.MessageId);
-                if (message?.media is not MessageMediaDocument { document: Document document })
-                {
-                    TelegramFilesStatus.Text = "O arquivo não está mais disponível na mensagem original do Telegram.";
-                    return;
-                }
-                documents.Add(document);
-            }
-
-            await using var output = await saveFile.OpenWriteAsync();
-            for (var index = 0; index < documents.Count; index++)
-            {
-                TelegramFilesStatus.Text = file.IsSplitFile
-                    ? $"Baixando parte {index + 1}/{documents.Count} de {file.DisplayName}..."
-                    : $"Baixando {file.DisplayName}...";
-                await _telegramClient.DownloadFileAsync(documents[index], output);
-            }
+            File.Move(tempOutputPath, outputPath);
+            queueItem.Percentage = 100;
+            queueItem.Status = "Concluído";
+            queueItem.ProgressLabel = "Download concluído";
+            queueItem.PartDescription = "Concluído";
+            queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
             TelegramFilesStatus.Text = file.IsSplitFile
-                ? $"Arquivo reconstruído com {documents.Count} partes: {file.DisplayName}"
-                : $"Download concluído: {file.DisplayName}";
+                ? $"Arquivo reconstruído com {documents.Count} partes: {outputPath}"
+                : $"Download concluído: {outputPath}";
         }
         catch (Exception ex)
         {
+            try { if (File.Exists(tempOutputPath)) File.Delete(tempOutputPath); } catch { }
+            queueItem.Status = "Falha";
+            queueItem.ProgressLabel = ex.Message;
+            queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
             TelegramFilesStatus.Text = $"Não foi possível baixar {file.DisplayName}: {ex.Message}";
+        }
+        finally
+        {
+            StartDownloadButton.IsEnabled = true;
+            _pendingDownloadFile = null;
+            UpdateTransferQueueDisplay();
         }
     }
 
@@ -1765,7 +1874,7 @@ public partial class MainWindow : Window
     }
 
     private async Task UploadTelegramMediaAsync(string sourcePath, string telegramFileName, string caption,
-        InputPeer destination, string mimeType, Action<long, long> progress)
+        InputPeer destination, Client.ProgressCallback progress)
     {
         if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
         var uploadedFile = await _telegramClient.UploadFileAsync(sourcePath, progress);
@@ -1799,12 +1908,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName)
+    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName, bool? verifyOverride = null)
     {
         if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
-        var verify = VerifyDownloadHash.IsChecked == true;
-        if (verify && string.IsNullOrWhiteSpace(expectedHash))
-            throw new InvalidDataException($"Não há hash SHA-256 de referência para a parte {partNumber} de “{displayName}”. Desative a verificação para baixar sem validar.");
+        var verify = (verifyOverride ?? (VerifyDownloadHash.IsChecked == true)) && !string.IsNullOrWhiteSpace(expectedHash);
 
         for (var attempt = 1; attempt <= (verify ? 2 : 1); attempt++)
         {
@@ -2639,6 +2746,9 @@ public partial class MainWindow : Window
                 VerifyUploadHash.IsChecked = data.VerifyUploadHash;
             if (VerifyDownloadHash is not null)
                 VerifyDownloadHash.IsChecked = data.VerifyDownloadHash;
+            _defaultDownloadFolder = data.DefaultDownloadFolder;
+            if (DefaultDownloadFolder is not null)
+                DefaultDownloadFolder.Text = _defaultDownloadFolder ?? "";
         }
         catch (Exception ex)
         {
@@ -2676,7 +2786,8 @@ public partial class MainWindow : Window
                 MaxUploads = int.TryParse(MaxUploadsValue.Text, out var uploads) && uploads > 0 ? uploads : 4,
                 MaxDownloads = int.TryParse(MaxDownloadsValue.Text, out var downloads) && downloads > 0 ? downloads : 4,
                 VerifyUploadHash = VerifyUploadHash.IsChecked == true,
-                VerifyDownloadHash = VerifyDownloadHash.IsChecked == true
+                VerifyDownloadHash = VerifyDownloadHash.IsChecked == true,
+                DefaultDownloadFolder = _defaultDownloadFolder
             };
 
             File.WriteAllText(_settingsPath, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
@@ -2695,6 +2806,7 @@ public partial class MainWindow : Window
         public int MaxDownloads { get; set; } = 4;
         public bool VerifyUploadHash { get; set; } = true;
         public bool VerifyDownloadHash { get; set; } = true;
+        public string? DefaultDownloadFolder { get; set; }
     }
 
     private void ToggleTransferQueue_Click(object? sender, RoutedEventArgs e)
