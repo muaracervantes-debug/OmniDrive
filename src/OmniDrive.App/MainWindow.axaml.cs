@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         TransferItemsList.ItemsSource = TransferQueue;
         CloudFilesList = this.FindControl<ListBox>(nameof(CloudFilesList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesList");
         CloudFilesList.ItemsSource = CloudFiles;
+        CloudFilesList.SelectionChanged += CloudFilesList_SelectionChanged;
         CloudFilesContainer = this.FindControl<Grid>(nameof(CloudFilesContainer)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesContainer");
         TelegramFilesStatus = this.FindControl<TextBlock>(nameof(TelegramFilesStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramFilesStatus");
         UpdateTransferQueueDisplay();
@@ -165,6 +166,49 @@ public partial class MainWindow : Window
         UploadModalTitle = this.FindControl<TextBlock>(nameof(UploadModalTitle)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadModalTitle");
         UploadItemsPanel = this.FindControl<StackPanel>(nameof(UploadItemsPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadItemsPanel");
         UploadModalStatus = this.FindControl<TextBlock>(nameof(UploadModalStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadModalStatus");
+    }
+
+
+    private void CloudFilesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        RefreshSelectedItemDetails();
+    }
+
+    private void RefreshSelectedItemDetails()
+    {
+        var item = CloudFilesList.SelectedItems.OfType<TelegramFileItem>().LastOrDefault()
+            ?? CloudFilesList.SelectedItem as TelegramFileItem;
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["DetailName"] = item?.DisplayName ?? "Informação não disponivel",
+            ["DetailSize"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Pasta" : (!string.IsNullOrWhiteSpace(item.SizeLabel) ? item.SizeLabel : "Informação não disponivel"),
+            ["DetailType"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Pasta" : (Path.GetExtension(item.DisplayName) is { Length: > 0 } extension ? extension : "Arquivo sem extensão"),
+            ["DetailModified"] = item is not null && !string.IsNullOrWhiteSpace(item.DateLabel) && item.MessageDate != DateTimeOffset.MinValue
+                ? item.MessageDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                : "Informação não disponivel",
+            ["DetailService"] = item is null ? "Informação não disponivel" : "Telegram",
+            ["DetailCredential"] = item is null ? "Informação não disponivel" : _telegramClient?.User is not null ? (_telegramClient.User.username ?? _telegramClient.User.first_name ?? "Telegram conectado") : "Informação não disponivel",
+            ["DetailFolder"] = item is null ? "Informação não disponivel" : (_folderPath.LastOrDefault()?.Name ?? "Raiz do Drive"),
+            ["DetailParts"] = item is null ? "Informação não disponivel" : item.IsFolder ? "Não aplicável" : item.IsSplitFile
+                ? $"{item.Parts.Count} parte(s) encontrada(s) de {item.ExpectedPartCount}" + (item.IsIncomplete ? " — incompleto" : "")
+                : "1 parte (arquivo único)",
+            ["DetailIntegrity"] = item is null ? "Informação não disponivel" : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
+                ? $"Hash SHA-256 salvo: {item.SavedHash}"
+                : "Informação não disponivel"
+        };
+
+        foreach (var pair in values)
+        {
+            if (this.FindControl<TextBlock>(pair.Key) is { } valueBlock)
+                valueBlock.Text = pair.Value;
+        }
+
+        if (this.FindControl<TextBlock>("DetailSelectionTitle") is { } title)
+            title.Text = item?.DisplayName ?? "Nenhum item selecionado";
+        if (this.FindControl<TextBlock>("DetailSelectionDescription") is { } description)
+            description.Text = item is null
+                ? "Selecione um arquivo ou pasta para ver os detalhes."
+                : item.IsFolder ? "Detalhes da pasta selecionada." : "Detalhes do arquivo selecionado.";
     }
 
     private void Overview_Click(object? sender, RoutedEventArgs e)
