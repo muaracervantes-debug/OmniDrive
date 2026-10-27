@@ -53,7 +53,7 @@
             <Grid RowDefinitions="Auto,*">
               <Border BorderBrush="#332D3D" BorderThickness="0,0,0,1" Padding="14,12">
                 <Grid ColumnDefinitions="34,*,105,130,26" ColumnSpacing="8">
-                  <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" IsEnabled="False"/>
+                  <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" IsEnabled="True" Checked="SelectAllCheckBox_Changed" Unchecked="SelectAllCheckBox_Changed" ToolTip.Tip="Selecionar todos os itens visíveis"/>
                   <TextBlock Grid.Column="1" Text="Nome" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="2" Text="Tamanho" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="3" Text="Modificado" Classes="muted" FontSize="11" VerticalAlignment="Center"/>
@@ -70,7 +70,7 @@
                 </Grid>
                 <Grid x:Name="CloudFilesContainer" IsVisible="False" RowDefinitions="Auto,*" ClipToBounds="True">
                   <TextBlock x:Name="TelegramFilesStatus" Text="" Classes="muted" FontSize="11" Margin="14,10"/>
-                  <ListBox Grid.Row="1" x:Name="CloudFilesList" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  <ListBox Grid.Row="1" x:Name="CloudFilesList" SelectionMode="Multiple" Background="Transparent" BorderThickness="0" DoubleTapped="CloudFilesList_DoubleTapped" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                       <DataTemplate x:DataType="local:TelegramFileItem">
                         <Border Padding="12,10" BorderBrush="#332D3D" BorderThickness="0,0,0,1" Background="Transparent" PointerEntered="CloudFileRow_PointerEntered" PointerExited="CloudFileRow_PointerExited">
