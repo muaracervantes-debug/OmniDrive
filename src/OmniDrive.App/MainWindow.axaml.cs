@@ -756,56 +756,94 @@ public partial class MainWindow : Window
 
     private async Task DeleteTelegramFileAsync(TelegramFileItem file)
     {
+        await DeleteTelegramFilesAsync(new[] { file });
+    }
+
+    private async Task DeleteSelectedTelegramFilesAsync()
+    {
+        var selected = CloudFilesList.SelectedItems.OfType<TelegramFileItem>().ToList();
+        await DeleteTelegramFilesAsync(selected);
+    }
+
+    private async Task DeleteTelegramFilesAsync(IReadOnlyCollection<TelegramFileItem> requestedFiles)
+    {
         if (_telegramClient?.User is null)
         {
             TelegramFilesStatus.Text = "Conecte o Telegram antes de excluir arquivos.";
             return;
         }
 
-        if (file.IsFolder)
+        var files = requestedFiles.Where(file => !file.IsFolder).Distinct().ToList();
+        if (files.Count == 0)
         {
-            TelegramFilesStatus.Text = "A exclusão de pastas do OmniDrive ainda não está disponível. Nenhum item foi excluído.";
+            TelegramFilesStatus.Text = "Selecione um ou mais arquivos. Pastas não podem ser excluídas por esta ação.";
             return;
         }
 
-        var description = file.IsSplitFile
-            ? $"“{file.DisplayName}” e todas as {file.Parts.Count} parte(s) associadas ao UUID {file.SplitUuid}"
-            : $"“{file.DisplayName}”";
-
+        var foldersSkipped = requestedFiles.Count - files.Count;
+        var description = files.Count == 1
+            ? $"excluir “{files[0].DisplayName}”"
+            : $"excluir {files.Count} arquivos selecionados";
         if (!await ConfirmActionAsync(
                 "Confirmar exclusão",
-                $"O OmniDrive excluirá {description} diretamente do Telegram. Esta ação pode não ser reversível. Deseja continuar?"))
+                $"O OmniDrive vai {description} diretamente do Telegram. Arquivos divididos serão excluídos com suas partes associadas ao UUID. Esta ação pode não ser reversível. Deseja continuar?"))
             return;
 
-        try
+        var deleted = 0;
+        var failures = new List<string>();
+        foreach (var file in files)
         {
-            var messages = file.IsSplitFile
-                ? file.Parts.Select(part => (part.Peer, part.MessageId)).ToList()
-                : new List<(InputPeer Peer, int MessageId)> { (file.Peer, file.MessageId) };
-
-            foreach (var group in messages
-                         .Where(item => item.MessageId > 0)
-                         .GroupBy(item => GetDeletePeerKey(item.Peer), StringComparer.Ordinal))
+            try
             {
-                var first = group.First();
-                var ids = group.Select(item => item.MessageId).Distinct().ToArray();
-                if (first.Peer is InputPeerChannel channelPeer)
-                {
-                    await _telegramClient.Channels_DeleteMessages(
-                        new InputChannel(channelPeer.channel_id, channelPeer.access_hash), ids);
-                }
-                else
-                {
-                    await _telegramClient.Messages_DeleteMessages(ids, revoke: true);
-                }
+                await DeleteTelegramFileFromSourceAsync(file);
+                deleted++;
             }
-
-            TelegramFilesStatus.Text = $"Excluído do Telegram: {file.DisplayName}";
-            await LoadTelegramFilesAsync();
+            catch (Exception ex)
+            {
+                failures.Add($"{file.DisplayName}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        if (deleted > 0)
+            await LoadTelegramFilesAsync();
+
+        var summary = $"Excluídos do Telegram: {deleted}/{files.Count}.";
+        if (foldersSkipped > 0)
+            summary += $" Pastas ignoradas: {foldersSkipped}.";
+        if (failures.Count > 0)
+            summary += " Falhas: " + string.Join(" | ", failures.Take(3));
+        TelegramFilesStatus.Text = summary;
+    }
+
+    private async Task DeleteTelegramFileFromSourceAsync(TelegramFileItem file)
+    {
+        if (_telegramClient is null)
+            throw new InvalidOperationException("O cliente do Telegram não está disponível.");
+
+        if (file.IsFolder)
+            throw new InvalidOperationException("Pastas não podem ser excluídas por esta ação.");
+
+        var messages = file.IsSplitFile
+            ? file.Parts.Select(part => (part.Peer, part.MessageId)).ToList()
+            : new List<(InputPeer Peer, int MessageId)> { (file.Peer, file.MessageId) };
+
+        var validMessages = messages.Where(item => item.MessageId > 0).ToList();
+        if (validMessages.Count == 0)
+            throw new InvalidOperationException("Não foram encontrados IDs de mensagens válidos para este item.");
+
+        foreach (var group in validMessages.GroupBy(item => GetDeletePeerKey(item.Peer), StringComparer.Ordinal))
         {
-            TelegramFilesStatus.Text = $"Não foi possível excluir “{file.DisplayName}” do Telegram: {ex.Message}";
+            var first = group.First();
+            var ids = group.Select(item => item.MessageId).Distinct().ToArray();
+            if (first.Peer is InputPeerChannel channelPeer)
+            {
+                await _telegramClient.Channels_DeleteMessages(
+                    new InputChannel(channelPeer.channel_id, channelPeer.access_hash), ids);
+            }
+            else
+            {
+                await _telegramClient.Messages_DeleteMessages(ids, revoke: true);
+            }
         }
     }
 
