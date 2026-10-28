@@ -135,8 +135,7 @@ public partial class MainWindow : Window
         SettingsIntegrityPage = this.FindControl<ScrollViewer>(nameof(SettingsIntegrityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsIntegrityPage");
         SettingsFolderPage = this.FindControl<ScrollViewer>(nameof(SettingsFolderPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsFolderPage");
         SettingsSecurityPage = this.FindControl<ScrollViewer>(nameof(SettingsSecurityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsSecurityPage");
-        SettingsLocalDataPage = this.FindControl<ScrollViewer>(nameof(SettingsLocalDataPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsLocalDataPage");
-        NewConnectionService = this.FindControl<ComboBox>(nameof(NewConnectionService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionService");
+                NewConnectionService = this.FindControl<ComboBox>(nameof(NewConnectionService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionService");
         NewConnectionName = this.FindControl<TextBox>(nameof(NewConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionName");
         ConnectionsList = this.FindControl<ListBox>(nameof(ConnectionsList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ConnectionsList");
         UploadLimitConnection = this.FindControl<ComboBox>(nameof(UploadLimitConnection)) ?? throw new InvalidOperationException("Controle XAML não encontrado: UploadLimitConnection");
@@ -354,11 +353,10 @@ public partial class MainWindow : Window
         SettingsIntegrityPage.IsVisible = section == "integrity";
         SettingsFolderPage.IsVisible = section == "folder";
         SettingsSecurityPage.IsVisible = section == "security";
-        SettingsLocalDataPage.IsVisible = section == "local";
 
         foreach (var item in this.GetVisualDescendants().OfType<Button>())
         {
-            if (item.Tag is string tag && new[] { "connect", "upload", "transfers", "integrity", "folder", "security", "local" }.Contains(tag))
+            if (item.Tag is string tag && new[] { "connect", "upload", "transfers", "integrity", "folder", "security" }.Contains(tag))
             {
                 item.Classes.Set("selected", tag == section);
             }
@@ -994,6 +992,12 @@ public partial class MainWindow : Window
             fileName += ".zip.odenc";
         if (encryptOrDecryptDownload && _downloadDecryptMode && fileName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase))
             fileName = fileName[..^".odenc".Length];
+        outputPath = Path.Combine(folder, fileName);
+        if (File.Exists(outputPath))
+        {
+            DownloadModalStatus.Text = "Já existe um arquivo com esse nome nessa pasta. Escolha outro nome para evitar sobrescrever dados.";
+            return;
+        }
         try
         {
             var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!);
@@ -1008,7 +1012,7 @@ public partial class MainWindow : Window
             DownloadModalStatus.Text = "Não foi possível verificar o espaço livre da pasta escolhida. Confirme as permissões e o espaço disponível antes de continuar.";
             return;
         }
-        var outputPath = Path.Combine(folder, fileName);
+        string outputPath = Path.Combine(folder, fileName);
         if (File.Exists(outputPath))
         {
             DownloadModalStatus.Text = "Já existe um arquivo com esse nome nessa pasta. Escolha outro nome para evitar sobrescrever dados.";
