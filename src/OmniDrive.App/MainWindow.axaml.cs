@@ -2784,6 +2784,43 @@ public partial class MainWindow : Window
         return "Outro serviço compatível";
     }
 
+    private void UpdateTelegramConnectionSummary()
+    {
+        var credentials = TelegramCredentialStore.Load();
+        if (credentials is null)
+        {
+            TelegramConnectionSummary.Text = "Nenhuma credencial salva";
+            TelegramCardConnectButton.Content = "＋ Conectar";
+            return;
+        }
+
+        var name = string.IsNullOrWhiteSpace(credentials.Name) ? "Telegram" : credentials.Name;
+        var account = _telegramClient?.User is not null
+            ? $"Conectado como {_telegramClient.User}"
+            : "Credencial salva · reconexão automática ao iniciar";
+        TelegramConnectionSummary.Text = $"{name} · {account}";
+        TelegramCardConnectButton.Content = "＋ Adicionar/Conectar";
+    }
+
+    private void EditTelegramCredential_Click(object? sender, RoutedEventArgs e)
+    {
+        var credentials = TelegramCredentialStore.Load();
+        if (credentials is null)
+        {
+            SettingsStatus.Text = "Ainda não existe uma credencial do Telegram salva. Clique em Conectar para cadastrar uma.";
+            ShowTelegramConnect_Click(sender, e);
+            return;
+        }
+
+        TelegramConnectionName.Text = credentials.Name;
+        TelegramApiId.Text = credentials.ApiId;
+        TelegramApiHash.Text = credentials.ApiHash;
+        TelegramPhone.Text = credentials.PhoneNumber;
+        TelegramConnectButton.Content = "Salvar alterações e conectar";
+        TelegramSetupOverlay.IsVisible = true;
+        TelegramStatus.Text = "Edite os dados desta credencial. As alterações serão salvas apenas para a conta do Telegram configurada aqui.";
+    }
+
     private void ShowTelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
         TelegramSetupOverlay.IsVisible = true;
@@ -2818,6 +2855,7 @@ public partial class MainWindow : Window
         TelegramPhone.Text = credentials.PhoneNumber;
         TelegramConnectionName.Text = string.IsNullOrWhiteSpace(credentials.Name) ? "Telegram" : credentials.Name;
         _hasSavedTelegramCredentials = true;
+        UpdateTelegramConnectionSummary();
         TelegramStatus.Text = "Credenciais recuperadas. O OmniDrive tentará conectar automaticamente ao iniciar.";
     }
 
@@ -2862,6 +2900,7 @@ public partial class MainWindow : Window
                 var credentials = new TelegramCredentials(apiId.ToString(), apiHash, phone, connectionName);
                 TelegramCredentialStore.Save(credentials);
                 _hasSavedTelegramCredentials = true;
+                UpdateTelegramConnectionSummary();
                 _telegramClient = new Client(apiId, apiHash, TelegramCredentialStore.SessionPath);
                 _telegramPendingKind = "phone_number";
                 loginInfo = phone;
@@ -2900,6 +2939,7 @@ public partial class MainWindow : Window
                 TelegramConnectButton.Content = "Conectado";
                 TelegramStatus.Text = $"Conectado ao Telegram como {_telegramClient.User}. A sessão está pronta para consultar seus arquivos.";
                 TelegramSetupOverlay.IsVisible = false;
+                UpdateTelegramConnectionSummary();
                 await LoadTelegramFilesAsync();
                 return;
             }
@@ -3019,6 +3059,7 @@ public partial class MainWindow : Window
         this.FindControl<Button>("TelegramResendCodeButton")!.IsVisible = false;
         _telegramResendRequested = false;
         TelegramConnectButton.Content = "Salvar e conectar";
+        UpdateTelegramConnectionSummary();
         TelegramStatus.Text = "Credenciais e sessão local removidas. Para revogar a sessão no Telegram, acesse Configurações > Dispositivos no aplicativo Telegram.";
     }
 
