@@ -14,6 +14,7 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     private string _credential = "—";
     private string _speed = "—";
     private string _elapsed = "—";
+    private string _remaining = "Calculando...";
     private string _size = "—";
     private string _status = "Aguardando";
     private bool _cancelRequested;
@@ -31,6 +32,7 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     public string Credential { get => _credential; set => SetField(ref _credential, value); }
     public string Speed { get => _speed; set => SetField(ref _speed, value); }
     public string Elapsed { get => _elapsed; set => SetField(ref _elapsed, value); }
+    public string Remaining { get => _remaining; set => SetField(ref _remaining, value); }
     public string Size { get => _size; set => SetField(ref _size, value); }
     public string Status { get => _status; set => SetField(ref _status, value); }
     public bool CancelRequested { get => _cancelRequested; set => SetField(ref _cancelRequested, value); }
