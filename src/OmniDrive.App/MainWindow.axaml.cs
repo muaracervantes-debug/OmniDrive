@@ -138,10 +138,7 @@ public partial class MainWindow : Window
         TransferQueueHost = this.FindControl<StackPanel>(nameof(TransferQueueHost)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferQueueHost");
         SettingsContent = this.FindControl<Grid>(nameof(SettingsContent)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsContent");
         SettingsConnectPage = this.FindControl<ScrollViewer>(nameof(SettingsConnectPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsConnectPage");
-        SettingsUploadPage = this.FindControl<ScrollViewer>(nameof(SettingsUploadPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsUploadPage");
         SettingsTransfersPage = this.FindControl<ScrollViewer>(nameof(SettingsTransfersPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsTransfersPage");
-        SettingsIntegrityPage = this.FindControl<ScrollViewer>(nameof(SettingsIntegrityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsIntegrityPage");
-        SettingsFolderPage = this.FindControl<ScrollViewer>(nameof(SettingsFolderPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsFolderPage");
         SettingsSecurityPage = this.FindControl<ScrollViewer>(nameof(SettingsSecurityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsSecurityPage");
         _ = this.FindControl<TextBlock>(nameof(AppPasswordSettingsStatus));
         _ = this.FindControl<Button>(nameof(ManageAppPasswordButton));
@@ -370,15 +367,12 @@ public partial class MainWindow : Window
             return;
 
         SettingsConnectPage.IsVisible = section == "connect";
-        SettingsUploadPage.IsVisible = section == "upload";
         SettingsTransfersPage.IsVisible = section == "transfers";
-        SettingsIntegrityPage.IsVisible = section == "integrity";
-        SettingsFolderPage.IsVisible = section == "folder";
         SettingsSecurityPage.IsVisible = section == "security";
 
         foreach (var item in this.GetVisualDescendants().OfType<Button>())
         {
-            if (item.Tag is string tag && new[] { "connect", "upload", "transfers", "integrity", "folder", "security" }.Contains(tag))
+            if (item.Tag is string tag && new[] { "connect", "transfers", "security" }.Contains(tag))
             {
                 item.Classes.Set("selected", tag == section);
             }
