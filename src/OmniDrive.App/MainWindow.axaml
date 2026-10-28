@@ -116,7 +116,7 @@
                 <Border Height="1" Background="#342D3E"/>
                 <TextBlock Text="INTEGRIDADE" Classes="muted" FontSize="10" FontWeight="Bold"/>
                 <StackPanel Spacing="4"><TextBlock Text="Partes do arquivo" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailParts" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
-                <StackPanel Spacing="4"><TextBlock Text="Verificação" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailIntegrity" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
+                <StackPanel Spacing="4"><TextBlock Text="SHA-256" Classes="muted" FontSize="11"/><TextBlock x:Name="DetailSha256" Text="Informação não disponivel" FontSize="12" TextWrapping="Wrap"/></StackPanel>
               </StackPanel>
             </ScrollViewer>
           </Grid>
