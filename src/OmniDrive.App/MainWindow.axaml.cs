@@ -1167,7 +1167,7 @@ public partial class MainWindow : Window
     {
         if (file.IsSplitFile && !string.IsNullOrWhiteSpace(file.SplitUuid))
             return "telegram:split:" + file.SplitUuid;
-        return "telegram:" + GetTelegramPeerKey(file.Peer) + ":" + file.MessageId;
+        return "telegram:" + GetDeletePeerKey(file.Peer) + ":" + file.MessageId;
     }
 
     private void LoadFavoriteKeys()
@@ -1218,7 +1218,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var folders = _loadedCloudFiles.Where(item => item.IsFolder && !string.Equals(item.FolderKey, GetTelegramPeerKey(file.Peer), StringComparison.Ordinal)).ToList();
+        var folders = _loadedCloudFiles.Where(item => item.IsFolder && !string.Equals(item.FolderKey, GetDeletePeerKey(file.Peer), StringComparison.Ordinal)).ToList();
         if (folders.Count == 0)
         {
             TelegramFilesStatus.Text = "Não há pastas de destino nessa credencial. Crie uma pasta primeiro.";
