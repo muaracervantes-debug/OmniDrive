@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace OmniDrive.App;
 
-internal sealed record TelegramCredentials(string ApiId, string ApiHash, string PhoneNumber);
+internal sealed record TelegramCredentials(string ApiId, string ApiHash, string PhoneNumber, string Name = "");
 
 internal static class TelegramCredentialStore
 {
