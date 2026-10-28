@@ -1014,7 +1014,25 @@ public partial class MainWindow : Window
                         else
                         {
                             if (File.Exists(tempPartPath)) File.Delete(tempPartPath);
-                            await DownloadPartWithIntegrityCheckAsync(documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName, verifyHash);
+                            var bytesBeforePart = file.IsSplitFile
+                                ? orderedParts.Take(index).Sum(part => Math.Max(0, part.SizeBytes))
+                                : 0L;
+                            await DownloadPartWithIntegrityCheckAsync(
+                                documents[index], tempPartPath, expectedHash, partNumber, file.DisplayName, verifyHash,
+                                bytes =>
+                                {
+                                    var totalBytes = bytesBeforePart + bytes;
+                                    var elapsed = DateTime.UtcNow - started;
+                                    var speed = elapsed.TotalSeconds > 0 ? totalBytes / elapsed.TotalSeconds : 0d;
+                                    queueItem.Speed = FormatFileSize((long)Math.Max(0, speed)) + "/s";
+                                    queueItem.Elapsed = FormatElapsed(elapsed);
+                                    if (file.SizeBytes > 0 && speed > 0)
+                                    {
+                                        var remainingSeconds = Math.Max(0, (file.SizeBytes - totalBytes) / speed);
+                                        queueItem.Remaining = FormatElapsed(TimeSpan.FromSeconds(Math.Min(remainingSeconds, 31536000d)));
+                                        queueItem.Percentage = Math.Clamp((double)totalBytes / file.SizeBytes * 100d, 0d, 99d);
+                                    }
+                                });
                         }
 
                         await using var partStream = File.OpenRead(tempPartPath);
@@ -2020,7 +2038,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName, bool? verifyOverride = null)
+    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName, bool? verifyOverride = null, Action<long>? progress = null)
     {
         if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
         var verify = (verifyOverride ?? (VerifyDownloadHash.IsChecked == true)) && !string.IsNullOrWhiteSpace(expectedHash);
@@ -2028,7 +2046,16 @@ public partial class MainWindow : Window
         for (var attempt = 1; attempt <= (verify ? 2 : 1); attempt++)
         {
             await using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                await _telegramClient.DownloadFileAsync(document, output);
+            {
+                var downloadTask = _telegramClient.DownloadFileAsync(document, output);
+                while (!downloadTask.IsCompleted)
+                {
+                    progress?.Invoke(output.Length);
+                    await Task.WhenAny(downloadTask, Task.Delay(250));
+                }
+                await downloadTask;
+                progress?.Invoke(output.Length);
+            }
             if (!verify) return;
 
             var actualHash = await ComputeSha256Async(destinationPath);
