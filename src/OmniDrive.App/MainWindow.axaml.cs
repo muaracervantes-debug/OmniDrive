@@ -1981,8 +1981,8 @@ public partial class MainWindow : Window
             destinationFields.Children.Add(folderField);
             fields.Children.Add(destinationFields);
             var options = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
-            var hashCheck = new CheckBox { Content = "Verificar hash", IsChecked = entry.VerifyHash };
-            hashCheck.IsCheckedChanged += (_, _) => entry.VerifyHash = hashCheck.IsChecked == true;
+            var hashCheck = new CheckBox { Content = "Verificar SHA-256 (obrigatório)", IsChecked = true, IsEnabled = false };
+            entry.VerifyHash = true;
             options.Children.Add(hashCheck);
             if (!entry.IsFolder)
             {
