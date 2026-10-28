@@ -692,6 +692,9 @@ public partial class MainWindow : Window
 
         foreach (var pair in groups)
         {
+            var duplicatePartNumbers = pair.Value
+                .GroupBy(entry => entry.Parsed.PartNumber)
+                .Any(group => group.Count() > 1);
             var entries = pair.Value
                 .GroupBy(entry => entry.Parsed.PartNumber)
                 .Select(group => group.OrderByDescending(entry => entry.File.MessageDate).First())
@@ -702,7 +705,8 @@ public partial class MainWindow : Window
 
             var expectedTotal = entries.Max(entry => entry.Parsed.TotalParts);
             var actualNumbers = entries.Select(entry => entry.Parsed.PartNumber).ToHashSet();
-            var incomplete = entries.Any(entry => entry.Parsed.TotalParts != expectedTotal)
+            var incomplete = duplicatePartNumbers
+                || entries.Any(entry => entry.Parsed.TotalParts != expectedTotal)
                 || actualNumbers.Count != expectedTotal
                 || Enumerable.Range(1, expectedTotal).Any(partNumber => !actualNumbers.Contains(partNumber));
             var first = entries[0];
@@ -717,7 +721,9 @@ public partial class MainWindow : Window
                 entry.File.SizeBytes,
                 entry.File.SavedHash)).ToList();
             var partsLabel = incomplete
-                ? $"{entries.Count}/{expectedTotal} partes · incompleto"
+                ? duplicatePartNumbers
+                    ? $"{entries.Count}/{expectedTotal} partes · duplicadas/incompleto"
+                    : $"{entries.Count}/{expectedTotal} partes · incompleto"
                 : $"{expectedTotal} partes";
             var sourceChats = entries.Select(entry => entry.File.ChatName).Distinct(StringComparer.Ordinal).ToList();
             var chatLabel = sourceChats.Count == 1 ? sourceChats[0] : $"Telegram · {sourceChats.Count} chats";
