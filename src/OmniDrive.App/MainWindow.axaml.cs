@@ -2899,6 +2899,7 @@ public partial class MainWindow : Window
                 TelegramLoginInput.Text = "";
                 TelegramConnectButton.Content = "Conectado";
                 TelegramStatus.Text = $"Conectado ao Telegram como {_telegramClient.User}. A sessão está pronta para consultar seus arquivos.";
+                TelegramSetupOverlay.IsVisible = false;
                 await LoadTelegramFilesAsync();
                 return;
             }
@@ -2907,6 +2908,7 @@ public partial class MainWindow : Window
             switch (requested)
             {
                 case "verification_code":
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = "Código de verificação enviado pelo Telegram";
                     TelegramLoginInput.Watermark = "Digite o código recebido";
                     TelegramLoginInput.PasswordChar = '\0';
@@ -2916,6 +2918,7 @@ public partial class MainWindow : Window
                     TelegramStatus.Text = "O código nem sempre chega por SMS: confira as mensagens de serviço do Telegram em qualquer sessão já conectada. Se não encontrar, use “Não recebi o código” para solicitar uma alternativa, quando disponível.";
                     break;
                 case "password":
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = "Senha de verificação em duas etapas (2FA)";
                     TelegramLoginInput.Watermark = "Senha da conta Telegram";
                     TelegramLoginInput.PasswordChar = '●';
@@ -2925,6 +2928,7 @@ public partial class MainWindow : Window
                     TelegramStatus.Text = "Sua conta exige a senha de verificação em duas etapas.";
                     break;
                 case "name":
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = "Nome completo";
                     TelegramLoginInput.Watermark = "Nome e sobrenome";
                     TelegramLoginInput.PasswordChar = '\0';
@@ -2934,6 +2938,7 @@ public partial class MainWindow : Window
                     TelegramStatus.Text = "O Telegram solicitou um nome para concluir o cadastro da conta.";
                     break;
                 case "email":
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = "E-mail";
                     TelegramLoginInput.Watermark = "Seu e-mail";
                     TelegramLoginInput.PasswordChar = '\0';
@@ -2942,6 +2947,7 @@ public partial class MainWindow : Window
                     TelegramStatus.Text = "O Telegram solicitou um endereço de e-mail para a verificação.";
                     break;
                 case "email_verification_code":
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = "Código enviado por e-mail";
                     TelegramLoginInput.Watermark = "Código de verificação do e-mail";
                     TelegramLoginInput.PasswordChar = '\0';
@@ -2954,6 +2960,7 @@ public partial class MainWindow : Window
                     TelegramStatus.Text = "O Telegram ainda não confirmou a conexão. Tente novamente.";
                     break;
                 default:
+                    TelegramSetupOverlay.IsVisible = true;
                     TelegramLoginLabel.Text = $"Informação solicitada: {requested}";
                     TelegramLoginInput.Watermark = "Digite a informação solicitada";
                     TelegramLoginInput.PasswordChar = '\0';
@@ -2965,6 +2972,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            TelegramSetupOverlay.IsVisible = true;
             TelegramStatus.Text = $"O Telegram não concluiu a solicitação: {ex.Message}";
             if (_telegramPendingKind == "phone_number")
             {
