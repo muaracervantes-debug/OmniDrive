@@ -1014,12 +1014,6 @@ public partial class MainWindow : Window
             fileName += ".zip.odenc";
         if (encryptOrDecryptDownload && _downloadDecryptMode && fileName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase))
             fileName = fileName[..^".odenc".Length];
-        outputPath = Path.Combine(folder, fileName);
-        if (File.Exists(outputPath))
-        {
-            DownloadModalStatus.Text = "Já existe um arquivo com esse nome nessa pasta. Escolha outro nome para evitar sobrescrever dados.";
-            return;
-        }
         try
         {
             var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!);
