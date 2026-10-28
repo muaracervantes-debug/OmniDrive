@@ -291,7 +291,7 @@
                   <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="{Binding Percentage}"/>
                   <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ProgressLabel}" Classes="muted" FontSize="10"/>
                   <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding PartDescription}" Foreground="#D6A8FF" FontSize="10" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Speed, StringFormat=Velocidade: {0}} · Restante: {Binding Remaining}" Classes="muted" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                  <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="12"><TextBlock Text="{Binding Speed}" Classes="muted" FontSize="10"/><TextBlock Text="{Binding Remaining}" Classes="muted" FontSize="10"/></StackPanel>
                 </Grid>
               </Border>
             </DataTemplate>
