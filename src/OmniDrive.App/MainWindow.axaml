@@ -130,7 +130,6 @@
               <Button Classes="nav" Tag="integrity" Click="SettingsSection_Click" Content="Integridade"/>
               <Button Classes="nav" Tag="folder" Click="SettingsSection_Click" Content="Pasta de download padrão"/>
               <Button Classes="nav" Tag="security" Click="SettingsSection_Click" Content="Segurança"/>
-              <Button Classes="nav" Tag="local" Click="SettingsSection_Click" Content="Dados locais"/>
             </StackPanel>
           </Border>
           <ScrollViewer x:Name="SettingsConnectPage" IsVisible="True" Grid.Column="1" Margin="0" Background="#14121B">
@@ -226,7 +225,6 @@
                 <TextBlock Text="As credenciais ainda não são coletadas nesta tela. A proteção de tokens e sessões deverá ser implementada junto à autenticação de cada provedor, usando armazenamento seguro do sistema operacional." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
               </StackPanel>
             </Border></StackPanel></ScrollViewer>
-          <ScrollViewer x:Name="SettingsLocalDataPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18"><StackPanel Spacing="10"><TextBlock Text="Dados locais" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="As preferências do OmniDrive ficam no perfil local do Windows e permanecem disponíveis após baixar uma nova versão." Classes="muted" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="Local das preferências:" FontSize="12" FontWeight="SemiBold"/><TextBlock Text="%LOCALAPPDATA%\OmniDrive\settings.json" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="A sessão do Telegram é armazenada separadamente e protegida por usuário do Windows." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel></Border></StackPanel></ScrollViewer>
         </Grid>
       </Grid>
       <Grid x:Name="TelegramSetupOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990B0910" ZIndex="100" PointerPressed="TelegramSetupOverlay_PointerPressed">
