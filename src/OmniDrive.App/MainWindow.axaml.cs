@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private readonly string _favoritesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "favorites.json");
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
+    private bool _hasSavedTelegramCredentials;
     private string? _telegramPendingKind;
     private bool _telegramResendRequested;
     private readonly List<string> _connections = new();
@@ -65,6 +66,11 @@ public partial class MainWindow : Window
         LoadTelegramFolderMap();
         LoadFavoriteKeys();
         LoadTelegramCredentials();
+        Loaded += (_, _) =>
+        {
+            if (_hasSavedTelegramCredentials)
+                TelegramConnect_Click(this, new RoutedEventArgs());
+        };
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
         Closed += (_, _) => _telegramClient?.Dispose();
@@ -2810,7 +2816,9 @@ public partial class MainWindow : Window
         TelegramApiId.Text = credentials.ApiId;
         TelegramApiHash.Text = credentials.ApiHash;
         TelegramPhone.Text = credentials.PhoneNumber;
-        TelegramStatus.Text = "Credenciais recuperadas do armazenamento protegido do Windows. Pressione Conectar para restaurar a sessão.";
+        TelegramConnectionName.Text = string.IsNullOrWhiteSpace(credentials.Name) ? "Telegram" : credentials.Name;
+        _hasSavedTelegramCredentials = true;
+        TelegramStatus.Text = "Credenciais recuperadas. O OmniDrive tentará conectar automaticamente ao iniciar.";
     }
 
     private async void TelegramConnect_Click(object? sender, RoutedEventArgs e)
@@ -2843,8 +2851,17 @@ public partial class MainWindow : Window
                     return;
                 }
 
-                var credentials = new TelegramCredentials(apiId.ToString(), apiHash, phone);
+                var connectionName = TelegramConnectionName.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(connectionName))
+                {
+                    TelegramStatus.Text = "Dê um nome à credencial antes de salvar e conectar.";
+                    TelegramConnectionName.Focus();
+                    return;
+                }
+
+                var credentials = new TelegramCredentials(apiId.ToString(), apiHash, phone, connectionName);
                 TelegramCredentialStore.Save(credentials);
+                _hasSavedTelegramCredentials = true;
                 _telegramClient = new Client(apiId, apiHash, TelegramCredentialStore.SessionPath);
                 _telegramPendingKind = "phone_number";
                 loginInfo = phone;
@@ -2982,8 +2999,10 @@ public partial class MainWindow : Window
         _telegramClient?.Dispose();
         _telegramClient = null;
         _telegramPendingKind = null;
+        _hasSavedTelegramCredentials = false;
         TelegramCredentialStore.ClearCredentials();
         TelegramCredentialStore.ClearSession();
+        TelegramConnectionName.Text = "";
         TelegramApiId.Text = "";
         TelegramApiHash.Text = "";
         TelegramPhone.Text = "";
