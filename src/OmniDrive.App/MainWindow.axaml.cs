@@ -1578,12 +1578,13 @@ public partial class MainWindow : Window
         foreach (var file in files)
         {
             var outputPath = GetUniqueDownloadPath(destination, file.DisplayName);
+            var tempOutputPath = outputPath + $".{Guid.NewGuid():N}.download";
             try
             {
                 TelegramFilesStatus.Text = $"Baixando {succeeded + 1}/{files.Count}: {file.DisplayName}...";
                 var documents = await GetTelegramDocumentsForFileAsync(file);
                 var orderedParts = file.IsSplitFile ? file.Parts.OrderBy(part => part.PartNumber).ToList() : new List<TelegramFilePart>();
-                await using (var output = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                await using (var output = new FileStream(tempOutputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
                     for (var index = 0; index < documents.Count; index++)
                     {
@@ -1602,11 +1603,22 @@ public partial class MainWindow : Window
                         }
                     }
                 }
+
+                var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
+                if (!string.IsNullOrWhiteSpace(expectedWholeHash))
+                {
+                    TelegramFilesStatus.Text = $"Verificando SHA-256 do arquivo completo: {file.DisplayName}...";
+                    var reconstructedHash = await ComputeSha256Async(tempOutputPath);
+                    if (!string.Equals(reconstructedHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("O SHA-256 do arquivo reconstruído não corresponde ao arquivo enviado. O arquivo não foi salvo.");
+                }
+
+                File.Move(tempOutputPath, outputPath);
                 succeeded++;
             }
             catch (Exception ex)
             {
-                try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { }
+                try { if (File.Exists(tempOutputPath)) File.Delete(tempOutputPath); } catch { }
                 failures.Add($"{file.DisplayName}: {ex.Message}");
             }
         }
