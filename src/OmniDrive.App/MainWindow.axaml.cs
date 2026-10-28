@@ -313,7 +313,17 @@ public partial class MainWindow : Window
     {
         ShowDriveView();
         AreaTitle.Text = "Lixeira";
-        StatusText.Text = "A lixeira estará disponível quando um provedor compatível for conectado";
+        SetBreadcrumbRoot("Lixeira");
+
+        // A integração atual é com o Telegram, que não oferece uma lixeira
+        // consultável pelo OmniDrive. Não exiba os arquivos normais do drive
+        // como se fossem itens excluídos.
+        CloudFilesContainer.IsVisible = false;
+        EmptyFilesState.IsVisible = true;
+        FilesEmptyTitle.Text = "Nenhum provedor com lixeira disponível";
+        FilesEmptyDescription.Text = "A lixeira reunirá os itens excluídos de cada credencial conectada quando o serviço oferecer esse recurso. A conexão atual do Telegram não disponibiliza uma lixeira recuperável.";
+        TelegramFilesStatus.Text = string.Empty;
+        StatusText.Text = "Lixeira indisponível para as credenciais conectadas";
         SetSelectedNavigation(sender);
     }
 
