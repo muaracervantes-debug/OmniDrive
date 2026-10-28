@@ -27,6 +27,10 @@ public partial class MainWindow : Window
     private string? _defaultDownloadFolder;
     private TelegramFileItem? _pendingDownloadFile;
     private bool _downloadDecryptMode;
+    private readonly string _appPasswordPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "app-password.json");
+    private bool _appPasswordConfigured;
+    private bool _appLocked;
+    private string _appPasswordDialogMode = "manage";
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
     private readonly List<UploadEntry> _pendingUploads = new();
@@ -68,10 +72,14 @@ public partial class MainWindow : Window
         LoadTelegramFolderMap();
         LoadFavoriteKeys();
         LoadTelegramCredentials();
+        _appPasswordConfigured = LoadAppPasswordRecord() is not null;
+        RefreshAppPasswordSettings();
         Loaded += (_, _) =>
         {
-            if (_hasSavedTelegramCredentials)
-                TelegramConnect_Click(this, new RoutedEventArgs());
+            if (_appPasswordConfigured)
+                ShowAppPasswordUnlock();
+            else
+                ContinueStartupAfterUnlock();
         };
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
@@ -135,6 +143,20 @@ public partial class MainWindow : Window
         SettingsIntegrityPage = this.FindControl<ScrollViewer>(nameof(SettingsIntegrityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsIntegrityPage");
         SettingsFolderPage = this.FindControl<ScrollViewer>(nameof(SettingsFolderPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsFolderPage");
         SettingsSecurityPage = this.FindControl<ScrollViewer>(nameof(SettingsSecurityPage)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsSecurityPage");
+        _ = this.FindControl<TextBlock>(nameof(AppPasswordSettingsStatus));
+        _ = this.FindControl<Button>(nameof(ManageAppPasswordButton));
+        _ = this.FindControl<Grid>(nameof(AppPasswordOverlay));
+        _ = this.FindControl<TextBlock>(nameof(AppPasswordDialogTitle));
+        _ = this.FindControl<TextBlock>(nameof(AppPasswordDialogDescription));
+        _ = this.FindControl<StackPanel>(nameof(AppPasswordCurrentPanel));
+        _ = this.FindControl<TextBox>(nameof(AppPasswordCurrent));
+        _ = this.FindControl<StackPanel>(nameof(AppPasswordNewPanel));
+        _ = this.FindControl<TextBox>(nameof(AppPasswordNew));
+        _ = this.FindControl<TextBox>(nameof(AppPasswordConfirm));
+        _ = this.FindControl<TextBlock>(nameof(AppPasswordDialogStatus));
+        _ = this.FindControl<Button>(nameof(RemoveAppPasswordButton));
+        _ = this.FindControl<Button>(nameof(CancelAppPasswordButton));
+        _ = this.FindControl<Button>(nameof(SaveAppPasswordButton));
                 NewConnectionService = this.FindControl<ComboBox>(nameof(NewConnectionService)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionService");
         NewConnectionName = this.FindControl<TextBox>(nameof(NewConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: NewConnectionName");
         ConnectionsList = this.FindControl<ListBox>(nameof(ConnectionsList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: ConnectionsList");
@@ -3206,6 +3228,193 @@ public partial class MainWindow : Window
         TelegramConnectButton.Content = "Salvar e conectar";
         UpdateTelegramConnectionSummary();
         TelegramStatus.Text = "Credenciais e sessão local removidas. Para revogar a sessão no Telegram, acesse Configurações > Dispositivos no aplicativo Telegram.";
+    }
+
+
+    private sealed class AppPasswordRecord
+    {
+        public string Salt { get; set; } = "";
+        public string Hash { get; set; } = "";
+        public int Iterations { get; set; } = 600_000;
+    }
+
+    private AppPasswordRecord? LoadAppPasswordRecord()
+    {
+        try
+        {
+            if (!File.Exists(_appPasswordPath)) return null;
+            var record = JsonSerializer.Deserialize<AppPasswordRecord>(File.ReadAllText(_appPasswordPath));
+            if (record is null || string.IsNullOrWhiteSpace(record.Salt) || string.IsNullOrWhiteSpace(record.Hash))
+                return null;
+            return record;
+        }
+        catch { return null; }
+    }
+
+    private static AppPasswordRecord CreateAppPasswordRecord(string password)
+    {
+        var salt = RandomNumberGenerator.GetBytes(16);
+        var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, 600_000, HashAlgorithmName.SHA256, 32);
+        return new AppPasswordRecord { Salt = Convert.ToBase64String(salt), Hash = Convert.ToBase64String(hash), Iterations = 600_000 };
+    }
+
+    private bool VerifyAppPassword(string password)
+    {
+        var record = LoadAppPasswordRecord();
+        if (record is null) return false;
+        try
+        {
+            var salt = Convert.FromBase64String(record.Salt);
+            var expected = Convert.FromBase64String(record.Hash);
+            var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, record.Iterations, HashAlgorithmName.SHA256, expected.Length);
+            return CryptographicOperations.FixedTimeEquals(actual, expected);
+        }
+        catch { return false; }
+    }
+
+    private void SaveAppPasswordRecord(string password)
+    {
+        var directory = Path.GetDirectoryName(_appPasswordPath)!;
+        Directory.CreateDirectory(directory);
+        var tempPath = _appPasswordPath + ".tmp";
+        File.WriteAllText(tempPath, JsonSerializer.Serialize(CreateAppPasswordRecord(password), new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(tempPath, _appPasswordPath, overwrite: true);
+    }
+
+    private void RefreshAppPasswordSettings()
+    {
+        var status = this.FindControl<TextBlock>("AppPasswordSettingsStatus");
+        var button = this.FindControl<Button>("ManageAppPasswordButton");
+        if (status is null || button is null) return;
+        status.Text = _appPasswordConfigured
+            ? "A senha de abertura está ativada. Você pode alterá-la ou removê-la."
+            : "Não há senha de abertura configurada. O aplicativo abre diretamente.";
+        button.Content = _appPasswordConfigured ? "Alterar ou remover senha" : "Definir senha de abertura";
+    }
+
+    private void ShowAppPasswordUnlock()
+    {
+        _appLocked = true;
+        _appPasswordDialogMode = "unlock";
+        var overlay = this.FindControl<Grid>("AppPasswordOverlay")!;
+        this.FindControl<TextBlock>("AppPasswordDialogTitle")!.Text = "Desbloquear OmniDrive";
+        this.FindControl<TextBlock>("AppPasswordDialogDescription")!.Text = "Digite sua senha para abrir o aplicativo.";
+        this.FindControl<StackPanel>("AppPasswordCurrentPanel")!.IsVisible = true;
+        this.FindControl<StackPanel>("AppPasswordNewPanel")!.IsVisible = false;
+        this.FindControl<Button>("RemoveAppPasswordButton")!.IsVisible = false;
+        this.FindControl<Button>("CancelAppPasswordButton")!.IsVisible = false;
+        this.FindControl<Button>("SaveAppPasswordButton")!.Content = "Desbloquear";
+        this.FindControl<TextBox>("AppPasswordCurrent")!.Text = "";
+        this.FindControl<TextBox>("AppPasswordNew")!.Text = "";
+        this.FindControl<TextBox>("AppPasswordConfirm")!.Text = "";
+        this.FindControl<TextBlock>("AppPasswordDialogStatus")!.Text = "";
+        overlay.IsVisible = true;
+        this.FindControl<TextBox>("AppPasswordCurrent")!.Focus();
+    }
+
+    private void ContinueStartupAfterUnlock()
+    {
+        _appLocked = false;
+        if (_hasSavedTelegramCredentials)
+            TelegramConnect_Click(this, new RoutedEventArgs());
+    }
+
+    private void ManageAppPassword_Click(object? sender, RoutedEventArgs e)
+    {
+        _appPasswordDialogMode = "manage";
+        this.FindControl<TextBlock>("AppPasswordDialogTitle")!.Text = _appPasswordConfigured ? "Alterar senha de abertura" : "Definir senha de abertura";
+        this.FindControl<TextBlock>("AppPasswordDialogDescription")!.Text = _appPasswordConfigured
+            ? "Informe a senha atual e depois escolha a nova senha. Você também pode remover a proteção."
+            : "Crie uma senha com pelo menos 8 caracteres para exigir autenticação ao abrir o OmniDrive.";
+        this.FindControl<StackPanel>("AppPasswordCurrentPanel")!.IsVisible = _appPasswordConfigured;
+        this.FindControl<StackPanel>("AppPasswordNewPanel")!.IsVisible = true;
+        this.FindControl<Button>("RemoveAppPasswordButton")!.IsVisible = _appPasswordConfigured;
+        this.FindControl<Button>("CancelAppPasswordButton")!.IsVisible = true;
+        this.FindControl<Button>("SaveAppPasswordButton")!.Content = "Salvar senha";
+        this.FindControl<TextBox>("AppPasswordCurrent")!.Text = "";
+        this.FindControl<TextBox>("AppPasswordNew")!.Text = "";
+        this.FindControl<TextBox>("AppPasswordConfirm")!.Text = "";
+        this.FindControl<TextBlock>("AppPasswordDialogStatus")!.Text = "";
+        this.FindControl<Grid>("AppPasswordOverlay")!.IsVisible = true;
+    }
+
+    private void SaveAppPassword_Click(object? sender, RoutedEventArgs e)
+    {
+        var current = this.FindControl<TextBox>("AppPasswordCurrent")!.Text ?? "";
+        var status = this.FindControl<TextBlock>("AppPasswordDialogStatus")!;
+        if (_appPasswordDialogMode == "unlock")
+        {
+            if (!VerifyAppPassword(current))
+            {
+                status.Text = "Senha incorreta. Tente novamente.";
+                this.FindControl<TextBox>("AppPasswordCurrent")!.Text = "";
+                return;
+            }
+            this.FindControl<Grid>("AppPasswordOverlay")!.IsVisible = false;
+            ContinueStartupAfterUnlock();
+            return;
+        }
+
+        if (_appPasswordConfigured && !VerifyAppPassword(current))
+        {
+            status.Text = "A senha atual está incorreta.";
+            return;
+        }
+        var password = this.FindControl<TextBox>("AppPasswordNew")!.Text ?? "";
+        var confirm = this.FindControl<TextBox>("AppPasswordConfirm")!.Text ?? "";
+        if (password.Length < 8)
+        {
+            status.Text = "A nova senha deve ter pelo menos 8 caracteres.";
+            return;
+        }
+        if (!string.Equals(password, confirm, StringComparison.Ordinal))
+        {
+            status.Text = "As senhas não coincidem.";
+            return;
+        }
+
+        try
+        {
+            SaveAppPasswordRecord(password);
+            _appPasswordConfigured = true;
+            RefreshAppPasswordSettings();
+            this.FindControl<Grid>("AppPasswordOverlay")!.IsVisible = false;
+            this.FindControl<TextBlock>("SettingsStatus")!.Text = "Senha de abertura salva.";
+        }
+        catch (Exception ex)
+        {
+            status.Text = $"Não foi possível salvar a senha: {ex.Message}";
+        }
+    }
+
+    private void RemoveAppPassword_Click(object? sender, RoutedEventArgs e)
+    {
+        var current = this.FindControl<TextBox>("AppPasswordCurrent")!.Text ?? "";
+        var status = this.FindControl<TextBlock>("AppPasswordDialogStatus")!;
+        if (!_appPasswordConfigured || !VerifyAppPassword(current))
+        {
+            status.Text = "Informe a senha atual correta para remover a proteção.";
+            return;
+        }
+        try
+        {
+            if (File.Exists(_appPasswordPath)) File.Delete(_appPasswordPath);
+            _appPasswordConfigured = false;
+            RefreshAppPasswordSettings();
+            this.FindControl<Grid>("AppPasswordOverlay")!.IsVisible = false;
+            this.FindControl<TextBlock>("SettingsStatus")!.Text = "Senha de abertura removida.";
+        }
+        catch (Exception ex)
+        {
+            status.Text = $"Não foi possível remover a senha: {ex.Message}";
+        }
+    }
+
+    private void CancelAppPassword_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_appPasswordDialogMode == "unlock" || _appLocked)
+            return;
+        this.FindControl<Grid>("AppPasswordOverlay")!.IsVisible = false;
     }
 
     private void LoadSettings()
