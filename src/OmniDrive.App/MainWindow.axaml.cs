@@ -675,9 +675,10 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            // The UUID embedded in _OD[...] is the stable identity of a split file.
-            // SHA-256 is integrity metadata only and must never be used to group parts.
-            var groupKey = "uuid:" + parsed.Uuid;
+            // New uploads use whole-file SHA-256 plus upload timestamp; legacy uploads keep UUID grouping.
+            var groupKey = parsed.IsLegacy
+                ? "uuid:" + parsed.Uuid
+                : "sha256:" + parsed.WholeFileHash + ":" + parsed.Timestamp;
 
             if (!groups.TryGetValue(groupKey, out var group))
             {
@@ -736,7 +737,8 @@ public partial class MainWindow : Window
                 displayName: displayName,
                 partsLabel: partsLabel,
                 hasSavedHash: savedHash is not null,
-                savedHash: savedHash));
+                savedHash: savedHash,
+                expectedWholeFileHash: first.Parsed.WholeFileHash));
         }
 
         return result;
@@ -745,7 +747,24 @@ public partial class MainWindow : Window
     private static bool TryParseSplitFileName(string name, out SplitFileName parsed)
     {
         parsed = default!;
+
         var match = Regex.Match(
+            name,
+            @"^(?<base>.+?)_OD\[(?<hash>[0-9a-fA-F]{64})_(?<timestamp>[0-9]{13})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?:_OG\[(?<partHash>[0-9a-fA-F]{64})\])?(?<ext>\..*)?$",
+            RegexOptions.CultureInvariant);
+        if (match.Success
+            && int.TryParse(match.Groups["part"].Value, out var newPartNumber)
+            && int.TryParse(match.Groups["total"].Value, out var newTotalParts)
+            && newPartNumber <= newTotalParts)
+        {
+            var wholeHash = match.Groups["hash"].Value.ToUpperInvariant();
+            var timestamp = match.Groups["timestamp"].Value;
+            var originalName = match.Groups["base"].Value + match.Groups["ext"].Value;
+            parsed = new SplitFileName(originalName, $"{wholeHash}_{timestamp}", newPartNumber, newTotalParts, wholeHash, timestamp, false);
+            return true;
+        }
+
+        match = Regex.Match(
             name,
             @"^(?<base>.+?)_OD\[(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_(?<part>[1-9][0-9]*)-(?<total>[1-9][0-9]*)\](?:_OG\[(?<hash>[0-9a-fA-F]{64})\])?(?<ext>\..*)?$",
             RegexOptions.CultureInvariant);
@@ -756,12 +775,19 @@ public partial class MainWindow : Window
             || partNumber > totalParts)
             return false;
 
-        var originalName = match.Groups["base"].Value + match.Groups["ext"].Value;
-        parsed = new SplitFileName(originalName, uuid.ToString(), partNumber, totalParts);
+        var legacyOriginalName = match.Groups["base"].Value + match.Groups["ext"].Value;
+        parsed = new SplitFileName(legacyOriginalName, uuid.ToString(), partNumber, totalParts, null, null, true);
         return true;
     }
 
-    private sealed record SplitFileName(string OriginalName, string Uuid, int PartNumber, int TotalParts);
+    private sealed record SplitFileName(
+        string OriginalName,
+        string Uuid,
+        int PartNumber,
+        int TotalParts,
+        string? WholeFileHash,
+        string? Timestamp,
+        bool IsLegacy);
 
     private static string? GetTelegramPeerKey(object entity) => entity switch
     {
@@ -1146,6 +1172,14 @@ public partial class MainWindow : Window
                 }
                 finally { try { if (File.Exists(transformedPath)) File.Delete(transformedPath); } catch { } }
             }
+            var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
+            if (!string.IsNullOrWhiteSpace(expectedWholeHash))
+            {
+                queueItem.ProgressLabel = "Verificando SHA-256 do arquivo completo";
+                var reconstructedHash = await ComputeSha256Async(tempOutputPath);
+                if (!string.Equals(reconstructedHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("O SHA-256 do arquivo reconstruído não corresponde ao arquivo enviado. O arquivo não foi salvo.");
+            }
             File.Move(tempOutputPath, outputPath);
             try { if (Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
             queueItem.Percentage = 100;
@@ -1463,7 +1497,10 @@ public partial class MainWindow : Window
                 {
                     if (!TryParseSplitFileName(part.SourceName, out var parsed))
                         throw new InvalidOperationException("Não foi possível validar os metadados de divisão do arquivo.");
-                    captionName = $"{Path.GetFileNameWithoutExtension(newName)}_OD[{parsed.Uuid}_{part.PartNumber}-{part.TotalParts}]{Path.GetExtension(newName)}";
+                    var marker = parsed.IsLegacy
+                        ? $"{parsed.Uuid}_{part.PartNumber}-{part.TotalParts}"
+                        : $"{parsed.WholeFileHash}_{parsed.Timestamp}_{part.PartNumber}-{part.TotalParts}";
+                    captionName = $"{Path.GetFileNameWithoutExtension(newName)}_OD[{marker}]{Path.GetExtension(newName)}";
                 }
 
                 var newCaption = RenameTelegramCaption(message.message, part.SourceName, captionName);
@@ -2118,16 +2155,21 @@ public partial class MainWindow : Window
                         });
                     }
 
+                    queueItem.ProgressLabel = "Calculando SHA-256 obrigatório";
+                    UploadModalStatus.Text = queueItem.ProgressLabel;
+                    var localHash = await ComputeSha256Async(sourcePath);
+                    var uploadTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    var uploadIdentity = $"{localHash}_{uploadTimestamp}";
+
                     if (sourceLength > partLimit)
                     {
-                        var splitUuid = Guid.NewGuid().ToString();
-                        var partPaths = await SplitFileIntoTemporaryPartsAsync(sourcePath, partLimit, splitUuid);
+                        var partPaths = await SplitFileIntoTemporaryPartsAsync(sourcePath, partLimit, Guid.NewGuid().ToString());
                         try
                         {
                             for (var index = 0; index < partPaths.Count; index++)
                             {
                                 var partNumber = index + 1;
-                                var partName = BuildSplitPartName(uploadName, splitUuid, partNumber, partPaths.Count);
+                                var partName = BuildSplitPartName(uploadName, localHash, uploadTimestamp, partNumber, partPaths.Count);
                                 var partHash = await ComputeSha256Async(partPaths[index]);
                                 queueItem.PartDescription = $"Parte {partNumber}/{partPaths.Count}";
                                 UploadModalStatus.Text = $"Enviando parte {partNumber}/{partPaths.Count}: {partName}";
@@ -2135,7 +2177,7 @@ public partial class MainWindow : Window
                                 await UploadTelegramMediaAsync(partPaths[index], partName, BuildTelegramCaption(partName, partHash),
                                     destination, GetMimeType(uploadName), ReportProgress);
                                 uploadedParts++;
-                                SaveIntegrityRecord(splitUuid, partNumber, partName, destinationName, partHash);
+                                SaveIntegrityRecord(uploadIdentity, partNumber, partName, destinationName, partHash);
                             }
                         }
                         finally
@@ -2146,20 +2188,15 @@ public partial class MainWindow : Window
                     }
                     else
                     {
-                        queueItem.ProgressLabel = entry.VerifyHash ? "Calculando SHA-256" : "Enviando arquivo";
-                        UploadModalStatus.Text = queueItem.ProgressLabel;
-                        var localHash = entry.VerifyHash ? await ComputeSha256Async(sourcePath) : null;
                         await UploadTelegramMediaAsync(sourcePath, uploadName, BuildTelegramCaption(uploadName, localHash),
                             destination, GetMimeType(uploadName), ReportProgress);
                         uploadedParts++;
-                        if (entry.VerifyHash)
-                        {
-                            var finalHash = await ComputeSha256Async(sourcePath);
-                            if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
-                                throw new IOException("A verificação local do hash falhou.");
-                            SaveIntegrityRecord(Guid.NewGuid().ToString(), 1, uploadName, destinationName, localHash!);
-                        }
+                        SaveIntegrityRecord(uploadIdentity, 1, uploadName, destinationName, localHash);
                     }
+
+                    var finalHash = await ComputeSha256Async(sourcePath);
+                    if (!string.Equals(localHash, finalHash, StringComparison.OrdinalIgnoreCase))
+                        throw new IOException("O arquivo de origem mudou durante o envio; a verificação SHA-256 falhou.");
                     queueItem.Percentage = 100;
                     queueItem.ProgressLabel = "Concluído";
                     queueItem.Status = "Concluído";
@@ -2234,11 +2271,11 @@ public partial class MainWindow : Window
         return conservativeTelegramLimit;
     }
 
-    private static string BuildSplitPartName(string originalName, string uuid, int partNumber, int totalParts)
+    private static string BuildSplitPartName(string originalName, string wholeFileHash, string timestamp, int partNumber, int totalParts)
     {
         var extension = Path.GetExtension(originalName);
         var stem = extension.Length > 0 ? originalName[..^extension.Length] : originalName;
-        return $"{stem}_OD[{uuid}_{partNumber}-{totalParts}]{extension}";
+        return $"{stem}_OD[{wholeFileHash}_{timestamp}_{partNumber}-{totalParts}]{extension}";
     }
 
     private static async Task<List<string>> SplitFileIntoTemporaryPartsAsync(string sourcePath, long partSize, string uuid)
