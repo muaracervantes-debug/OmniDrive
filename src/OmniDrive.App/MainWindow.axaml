@@ -219,10 +219,22 @@
               </StackPanel>
             </Border></StackPanel></ScrollViewer>
           <ScrollViewer x:Name="SettingsSecurityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
-              <StackPanel Spacing="10">
+              <StackPanel Spacing="12">
                 <TextBlock Text="Segurança" FontSize="17" FontWeight="SemiBold"/>
-                <TextBlock Text="As preferências e os limites configurados serão mantidos localmente. Os dados locais não devem ser a única fonte para identificar partes de arquivos nem para recuperar hashes." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
-                <TextBlock Text="As credenciais ainda não são coletadas nesta tela. A proteção de tokens e sessões deverá ser implementada junto à autenticação de cada provedor, usando armazenamento seguro do sistema operacional." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="O OmniDrive compacta arquivos e pastas antes de criptografar. A senha é usada apenas durante a operação e não é salva nas configurações." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                <Border Classes="panel" Padding="14">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="Criptografia de uploads" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="Ative a opção no formulário de upload e defina uma senha. O resultado será um pacote .odenc protegido por senha." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+                <Border Classes="panel" Padding="14">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="Criptografia de downloads" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="Você também poderá compactar e criptografar uma cópia ao baixar. Guarde a senha em local seguro: sem ela, o conteúdo não poderá ser recuperado." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+                <TextBlock Text="Use uma senha forte. A senha não é enviada separadamente ao serviço de armazenamento." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
               </StackPanel>
             </Border></StackPanel></ScrollViewer>
         </Grid>
@@ -360,6 +372,12 @@
           </Grid>
         </StackPanel>
         <CheckBox x:Name="DownloadVerifyHashCheckBox" Content="Verificar SHA-256 quando houver hash de referência"/>
+        <CheckBox x:Name="DownloadEncryptCheckBox" Content="Compactar e criptografar o download" IsChecked="False"/>
+        <StackPanel x:Name="DownloadEncryptionFields" Spacing="8" IsVisible="False">
+          <TextBlock Text="Senha de criptografia" FontSize="12" FontWeight="SemiBold"/>
+          <TextBox x:Name="DownloadEncryptionPassword" PasswordChar="●" Watermark="Digite uma senha forte"/>
+          <TextBox x:Name="DownloadEncryptionPasswordConfirm" PasswordChar="●" Watermark="Confirme a senha"/>
+        </StackPanel>
         <TextBlock x:Name="DownloadModalStatus" Text="" Classes="muted" FontSize="11" TextWrapping="Wrap"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
           <Button Classes="ghost" Content="Cancelar" Click="CancelDownload_Click"/>
