@@ -235,9 +235,39 @@
                   </StackPanel>
                 </Border>
                 <TextBlock Text="Use uma senha forte. A senha não é enviada separadamente ao serviço de armazenamento." Foreground="#D6A8FF" FontSize="12" TextWrapping="Wrap"/>
+                <Border Classes="panel" Padding="14">
+                  <StackPanel Spacing="9">
+                    <TextBlock Text="Senha para abrir o OmniDrive" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="AppPasswordSettingsStatus" Text="Proteja a abertura do aplicativo com uma senha local." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+                    <Button x:Name="ManageAppPasswordButton" Classes="action" Content="Definir senha de abertura" HorizontalAlignment="Left" Click="ManageAppPassword_Click"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </Border></StackPanel></ScrollViewer>
         </Grid>
+      </Grid>
+      <Grid x:Name="AppPasswordOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#E00A0810" ZIndex="1000">
+        <Border Classes="panel" Width="440" MaxHeight="620" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#201D28">
+          <StackPanel Spacing="14">
+            <TextBlock x:Name="AppPasswordDialogTitle" Text="Senha do OmniDrive" FontSize="22" FontWeight="Bold"/>
+            <TextBlock x:Name="AppPasswordDialogDescription" Text="Defina uma senha para proteger o acesso ao aplicativo." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+            <StackPanel x:Name="AppPasswordCurrentPanel" Spacing="6" IsVisible="False">
+              <TextBlock Text="Senha atual" FontSize="12" FontWeight="SemiBold"/>
+              <TextBox x:Name="AppPasswordCurrent" PasswordChar="●" Watermark="Digite a senha atual"/>
+            </StackPanel>
+            <StackPanel x:Name="AppPasswordNewPanel" Spacing="6">
+              <TextBlock Text="Nova senha" FontSize="12" FontWeight="SemiBold"/>
+              <TextBox x:Name="AppPasswordNew" PasswordChar="●" Watermark="Digite uma senha forte"/>
+              <TextBox x:Name="AppPasswordConfirm" PasswordChar="●" Watermark="Confirme a nova senha"/>
+            </StackPanel>
+            <TextBlock x:Name="AppPasswordDialogStatus" Text="" Foreground="#FCA5A5" FontSize="12" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button x:Name="RemoveAppPasswordButton" Classes="ghost" Content="Remover senha" Click="RemoveAppPassword_Click" IsVisible="False"/>
+              <Button x:Name="CancelAppPasswordButton" Classes="ghost" Content="Cancelar" Click="CancelAppPassword_Click"/>
+              <Button x:Name="SaveAppPasswordButton" Classes="action" Content="Salvar" Click="SaveAppPassword_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </Grid>
       <Grid x:Name="TelegramSetupOverlay" Grid.ColumnSpan="2" IsVisible="False" Background="#990B0910" ZIndex="100" PointerPressed="TelegramSetupOverlay_PointerPressed">
     <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="480" MaxHeight="760" Classes="panel" Padding="0" PointerPressed="TelegramSetupCard_PointerPressed">
