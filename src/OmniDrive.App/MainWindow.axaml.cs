@@ -1146,6 +1146,14 @@ public partial class MainWindow : Window
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
                 }
             }
+            var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
+            if (!string.IsNullOrWhiteSpace(expectedWholeHash))
+            {
+                queueItem.ProgressLabel = "Verificando SHA-256 do arquivo completo";
+                var reconstructedHash = await ComputeSha256Async(tempOutputPath);
+                if (!string.Equals(reconstructedHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("O SHA-256 do arquivo reconstruído não corresponde ao arquivo enviado. O arquivo não foi salvo.");
+            }
             if (encryptOrDecryptDownload)
             {
                 var transformedPath = tempOutputPath + (_downloadDecryptMode ? ".decrypted" : ".encrypted");
@@ -1171,14 +1179,6 @@ public partial class MainWindow : Window
                     File.Move(transformedPath, tempOutputPath);
                 }
                 finally { try { if (File.Exists(transformedPath)) File.Delete(transformedPath); } catch { } }
-            }
-            var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
-            if (!string.IsNullOrWhiteSpace(expectedWholeHash))
-            {
-                queueItem.ProgressLabel = "Verificando SHA-256 do arquivo completo";
-                var reconstructedHash = await ComputeSha256Async(tempOutputPath);
-                if (!string.Equals(reconstructedHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("O SHA-256 do arquivo reconstruído não corresponde ao arquivo enviado. O arquivo não foi salvo.");
             }
             File.Move(tempOutputPath, outputPath);
             try { if (Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
