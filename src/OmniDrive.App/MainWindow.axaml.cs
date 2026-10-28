@@ -545,9 +545,9 @@ public partial class MainWindow : Window
             }
             else if (GetActiveFilterCount() == 0)
             {
-                TelegramFilesStatus.Text = currentFolder is null
-                    ? $"{CloudFiles.Count} item(ns) na raiz · {foldersFound} chat(s) identificado(s) como pasta(s) do OmniDrive."
-                    : $"{CloudFiles.Count} item(ns) em {currentFolder.Name}.";
+                // A listagem de arquivos não precisa exibir o resumo de quantidade/pastas.
+                // Mantemos o espaço de status disponível para mensagens de erro e filtros.
+                TelegramFilesStatus.Text = string.Empty;
             }
             UpdateBreadcrumb();
         }
