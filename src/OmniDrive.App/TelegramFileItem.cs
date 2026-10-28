@@ -27,8 +27,9 @@ public sealed class TelegramFileItem
     public bool IsFavorite { get; set; }
     public bool HasSavedHash { get; }
     public string? SavedHash { get; }
+    public string? ExpectedWholeFileHash { get; }
 
-    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null, IReadOnlyList<TelegramFilePart>? parts = null, string? splitUuid = null, int expectedPartCount = 1, bool isIncomplete = false, string? displayName = null, string? partsLabel = null, bool isFavorite = false, bool hasSavedHash = false, string? savedHash = null)
+    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null, IReadOnlyList<TelegramFilePart>? parts = null, string? splitUuid = null, int expectedPartCount = 1, bool isIncomplete = false, string? displayName = null, string? partsLabel = null, bool isFavorite = false, bool hasSavedHash = false, string? savedHash = null, string? expectedWholeFileHash = null)
     {
         Name = name;
         DisplayName = displayName ?? name;
@@ -48,6 +49,7 @@ public sealed class TelegramFileItem
         FolderKey = folderKey;
         IsFavorite = isFavorite;
         SavedHash = savedHash;
+        ExpectedWholeFileHash = expectedWholeFileHash;
         HasSavedHash = hasSavedHash || !string.IsNullOrWhiteSpace(savedHash);
         MessageDate = DateTimeOffset.TryParse(dateLabel, out var parsed) ? parsed : DateTimeOffset.MinValue;
     }
