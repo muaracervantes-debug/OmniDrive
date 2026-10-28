@@ -12,9 +12,9 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     private string _partDescription = "—";
     private string _service = "—";
     private string _credential = "—";
-    private string _speed = "—";
+    private string _speed = "Velocidade: —";
     private string _elapsed = "—";
-    private string _remaining = "Calculando...";
+    private string _remaining = "Restante: calculando...";
     private string _size = "—";
     private string _status = "Aguardando";
     private bool _cancelRequested;
