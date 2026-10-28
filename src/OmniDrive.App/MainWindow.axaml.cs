@@ -196,6 +196,8 @@ public partial class MainWindow : Window
         TransferDetailCredential = this.FindControl<TextBlock>(nameof(TransferDetailCredential)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailCredential");
         TransferDetailPart = this.FindControl<TextBlock>(nameof(TransferDetailPart)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TransferDetailPart");
         TelegramSetupPanel = this.FindControl<Border>(nameof(TelegramSetupPanel)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramSetupPanel");
+        TelegramConnectionSummary = this.FindControl<TextBlock>(nameof(TelegramConnectionSummary)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectionSummary");
+        TelegramCardConnectButton = this.FindControl<Button>(nameof(TelegramCardConnectButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramCardConnectButton");
         TelegramSetupOverlay = this.FindControl<Grid>(nameof(TelegramSetupOverlay)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramSetupOverlay");
         TelegramConnectionName = this.FindControl<TextBox>(nameof(TelegramConnectionName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramConnectionName");
         TelegramApiId = this.FindControl<TextBox>(nameof(TelegramApiId)) ?? throw new InvalidOperationException("Controle XAML não encontrado: TelegramApiId");
