@@ -207,7 +207,7 @@ public partial class MainWindow : Window
             ["DetailParts"] = item is null ? unknown : item.IsFolder ? "Não aplicável" : item.IsSplitFile
                 ? $"{item.Parts.Count} parte(s) encontrada(s) de {item.ExpectedPartCount}" + (item.IsIncomplete ? " — incompleto" : "")
                 : "1 parte",
-            ["DetailIntegrity"] = item is null ? unknown : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
+            ["DetailSha256"] = item is null ? unknown : item.HasSavedHash && !string.IsNullOrWhiteSpace(item.SavedHash)
                 ? item.SavedHash : unknown
         };
 
@@ -1763,6 +1763,7 @@ public partial class MainWindow : Window
         foreach (var item in queuedUploads.Values) TransferQueue.Add(item);
         TransferQueuePanel.IsVisible = true;
         UpdateTransferQueueDisplay();
+        UploadModalOverlay.IsVisible = false;
         try
         {
             foreach (var entry in _pendingUploads.ToList())
