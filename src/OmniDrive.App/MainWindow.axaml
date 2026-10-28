@@ -150,12 +150,13 @@
                 </Grid>
               </Border>
               <Border Background="#25212D" BorderBrush="#393242" BorderThickness="1" CornerRadius="15" Padding="16">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                   <StackPanel Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="Telegram" FontSize="14" FontWeight="SemiBold" Foreground="#F4F0FA"/>
-                    <TextBlock Text="Informe as credenciais do aplicativo (my.telegram.org) e o telefone da conta." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TelegramConnectionSummary" Text="Nenhuma credencial salva" FontSize="11" Foreground="#A49CAF" TextWrapping="Wrap"/>
                   </StackPanel>
-                  <Button Grid.Column="1" Classes="action" Content="＋ Conectar" Click="ShowTelegramConnect_Click" VerticalAlignment="Center" MinWidth="104"/>
+                  <Button Grid.Column="1" Classes="ghost" Content="Editar" Click="EditTelegramCredential_Click" VerticalAlignment="Center" MinWidth="80"/>
+                  <Button x:Name="TelegramCardConnectButton" Grid.Column="2" Classes="action" Content="＋ Conectar" Click="ShowTelegramConnect_Click" VerticalAlignment="Center" MinWidth="104"/>
                 </Grid>
               </Border>
               <Border IsVisible="False">
