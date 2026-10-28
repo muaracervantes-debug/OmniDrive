@@ -32,6 +32,8 @@ public partial class MainWindow : Window
     private List<UploadDestination> _uploadDestinations = new() { new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self") };
     private bool _uploadIsFolder;
     private readonly Dictionary<string, string?> _folderParents = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _favoriteKeys = new(StringComparer.Ordinal);
+    private readonly string _favoritesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "favorites.json");
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
     private string? _telegramPendingKind;
@@ -61,6 +63,7 @@ public partial class MainWindow : Window
         UpdateTransferQueuePosition();
         LoadSettings();
         LoadTelegramFolderMap();
+        LoadFavoriteKeys();
         LoadTelegramCredentials();
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
@@ -533,6 +536,9 @@ public partial class MainWindow : Window
                     // Um diálogo inacessível não deve impedir a detecção dos demais chats e pastas.
                 }
             }
+
+            foreach (var item in CloudFiles)
+                item.IsFavorite = _favoriteKeys.Contains(GetFavoriteKey(item));
 
             var sorted = GroupSplitFiles(CloudFiles.ToList())
                 .OrderBy(file => file.IsFolder ? 0 : 1)
@@ -1125,41 +1131,160 @@ public partial class MainWindow : Window
                 Header = "Abrir pasta",
                 Command = new RelayUiCommand(() => NavigateToFolder(file))
             });
-            menu.Items.Add(new MenuItem
-            {
-                Header = "Informações sobre a pasta",
-                Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"Pasta: {file.Name} · Serviço: Telegram · Identificador: {file.FolderKey}")
-            });
             menu.Open(CloudFilesList);
             return;
         }
 
         menu.Items.Add(new MenuItem
         {
-            Header = "Baixar",
+            Header = "Download",
             Command = new RelayUiCommand(() => DownloadTelegramFileForItem(file))
-        });
-        menu.Items.Add(new MenuItem
-        {
-            Header = "Informações sobre o arquivo",
-            Command = new RelayUiCommand(() => TelegramFilesStatus.Text = $"{file.DisplayName} · {file.SizeLabel} · {file.ChatName} · {file.DateLabel}" +
-                (file.IsSplitFile ? $" · Hash: {file.SplitUuid} · Partes: {file.Parts.Count}/{file.ExpectedPartCount}" : string.Empty))
         });
         menu.Items.Add(new MenuItem
         {
             Header = "Renomear",
             Command = new RelayUiCommand(() => _ = RenameTelegramFileAsync(file))
         });
-        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem
+        {
+            Header = "Mover",
+            Command = new RelayUiCommand(() => _ = MoveTelegramFileAsync(file))
+        });
+        menu.Items.Add(new MenuItem
+        {
+            Header = file.IsFavorite ? "Remover dos favoritos" : "Favoritar",
+            Command = new RelayUiCommand(() => _ = ToggleFavoriteAsync(file))
+        });
         menu.Items.Add(new MenuItem
         {
             Header = "Excluir",
             Command = new RelayUiCommand(() => _ = DeleteTelegramFileAsync(file))
         });
-
         menu.Open(CloudFilesList);
     }
 
+    private string GetFavoriteKey(TelegramFileItem file)
+    {
+        if (file.IsSplitFile && !string.IsNullOrWhiteSpace(file.SplitUuid))
+            return "telegram:split:" + file.SplitUuid;
+        return "telegram:" + GetTelegramPeerKey(file.Peer) + ":" + file.MessageId;
+    }
+
+    private void LoadFavoriteKeys()
+    {
+        try
+        {
+            if (File.Exists(_favoritesPath))
+            {
+                var keys = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(_favoritesPath));
+                if (keys is not null)
+                    foreach (var key in keys)
+                        _favoriteKeys.Add(key);
+            }
+        }
+        catch { }
+    }
+
+    private void SaveFavoriteKeys()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_favoritesPath)!);
+            File.WriteAllText(_favoritesPath, JsonSerializer.Serialize(_favoriteKeys.OrderBy(key => key).ToList(), new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = "Não foi possível salvar os favoritos: " + ex.Message;
+        }
+    }
+
+    private async Task ToggleFavoriteAsync(TelegramFileItem file)
+    {
+        var key = GetFavoriteKey(file);
+        if (!_favoriteKeys.Add(key))
+            _favoriteKeys.Remove(key);
+        SaveFavoriteKeys();
+        await LoadTelegramFilesAsync();
+        TelegramFilesStatus.Text = _favoriteKeys.Contains(key)
+            ? $"“{file.DisplayName}” foi adicionado aos favoritos."
+            : $"“{file.DisplayName}” foi removido dos favoritos.";
+    }
+
+    private async Task MoveTelegramFileAsync(TelegramFileItem file)
+    {
+        if (_telegramClient?.User is null)
+        {
+            TelegramFilesStatus.Text = "Conecte a credencial do Telegram antes de mover arquivos.";
+            return;
+        }
+
+        var folders = _loadedCloudFiles.Where(item => item.IsFolder && !string.Equals(item.FolderKey, GetTelegramPeerKey(file.Peer), StringComparison.Ordinal)).ToList();
+        if (folders.Count == 0)
+        {
+            TelegramFilesStatus.Text = "Não há pastas de destino nessa credencial. Crie uma pasta primeiro.";
+            return;
+        }
+
+        var picker = new ComboBox { MinWidth = 320, ItemsSource = folders, SelectedIndex = 0 };
+        picker.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<TelegramFileItem>(
+            (item, _) => new TextBlock { Text = item.DisplayName },
+            supportsRecycling: false);
+        var description = new TextBlock
+        {
+            Text = "Selecione uma pasta da mesma credencial do arquivo. O OmniDrive encaminhará os itens para a pasta escolhida e, após confirmar o envio, removerá as mensagens de origem.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Foreground = Avalonia.Media.Brush.Parse("#F4F0FA")
+        };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 10 };
+        var dialog = new Window
+        {
+            Title = "Mover arquivo",
+            Width = 440,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brush.Parse("#201D28"),
+            Padding = new Thickness(22)
+        };
+        var body = new StackPanel { Spacing = 14 };
+        body.Children.Add(description);
+        body.Children.Add(picker);
+        var cancel = new Button { Content = "Cancelar", MinWidth = 90 };
+        cancel.Click += (_, _) => dialog.Close(false);
+        var move = new Button { Content = "Mover", MinWidth = 90 };
+        move.Click += (_, _) => dialog.Close(true);
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(move);
+        body.Children.Add(buttons);
+        dialog.Content = body;
+
+        if (await dialog.ShowDialog<bool>(this) != true || picker.SelectedItem is not TelegramFileItem destination)
+            return;
+
+        var parts = file.IsSplitFile
+            ? file.Parts.OrderBy(part => part.PartNumber).Select(part => (part.Peer, part.MessageId)).ToList()
+            : new List<(InputPeer Peer, int MessageId)> { (file.Peer, file.MessageId) };
+
+        try
+        {
+            foreach (var group in parts.GroupBy(part => GetDeletePeerKey(part.Peer), StringComparer.Ordinal))
+            {
+                var groupParts = group.ToList();
+                var sourcePeer = groupParts[0].Peer;
+                var ids = groupParts.Select(part => part.MessageId).ToArray();
+                var randomIds = ids.Select(_ => Random.Shared.NextInt64(1, long.MaxValue)).ToArray();
+                await _telegramClient.Messages_ForwardMessages(sourcePeer, ids, randomIds, destination.Peer);
+            }
+
+            await DeleteTelegramFileFromSourceAsync(file);
+            await LoadTelegramFilesAsync();
+            TelegramFilesStatus.Text = $"“{file.DisplayName}” foi movido para “{destination.DisplayName}”.";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível concluir a movimentação: {ex.Message}. Confira as pastas de origem e destino antes de tentar novamente.";
+        }
+    }
 
     private async Task RenameTelegramFileAsync(TelegramFileItem file)
     {
