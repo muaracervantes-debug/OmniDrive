@@ -1024,12 +1024,12 @@ public partial class MainWindow : Window
                                     var totalBytes = bytesBeforePart + bytes;
                                     var elapsed = DateTime.UtcNow - started;
                                     var speed = elapsed.TotalSeconds > 0 ? totalBytes / elapsed.TotalSeconds : 0d;
-                                    queueItem.Speed = FormatFileSize((long)Math.Max(0, speed)) + "/s";
+                                    queueItem.Speed = "Velocidade: " + FormatFileSize((long)Math.Max(0, speed)) + "/s";
                                     queueItem.Elapsed = FormatElapsed(elapsed);
                                     if (file.SizeBytes > 0 && speed > 0)
                                     {
                                         var remainingSeconds = Math.Max(0, (file.SizeBytes - totalBytes) / speed);
-                                        queueItem.Remaining = FormatElapsed(TimeSpan.FromSeconds(Math.Min(remainingSeconds, 31536000d)));
+                                        queueItem.Remaining = "Restante: " + FormatElapsed(TimeSpan.FromSeconds(Math.Min(remainingSeconds, 31536000d)));
                                         queueItem.Percentage = Math.Clamp((double)totalBytes / file.SizeBytes * 100d, 0d, 99d);
                                     }
                                 });
