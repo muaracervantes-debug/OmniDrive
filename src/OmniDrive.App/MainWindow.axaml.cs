@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private bool _detailsVisible = true;
     private string? _defaultDownloadFolder;
     private TelegramFileItem? _pendingDownloadFile;
+    private bool _downloadDecryptMode;
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
     private readonly List<UploadEntry> _pendingUploads = new();
@@ -153,6 +154,11 @@ public partial class MainWindow : Window
         DownloadFileName = this.FindControl<TextBox>(nameof(DownloadFileName)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadFileName");
         DownloadFolderPath = this.FindControl<TextBox>(nameof(DownloadFolderPath)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadFolderPath");
         DownloadVerifyHashCheckBox = this.FindControl<CheckBox>(nameof(DownloadVerifyHashCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadVerifyHashCheckBox");
+        DownloadEncryptCheckBox = this.FindControl<CheckBox>(nameof(DownloadEncryptCheckBox)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadEncryptCheckBox");
+        DownloadEncryptionFields = this.FindControl<StackPanel>(nameof(DownloadEncryptionFields)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadEncryptionFields");
+        DownloadEncryptionPassword = this.FindControl<TextBox>(nameof(DownloadEncryptionPassword)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadEncryptionPassword");
+        DownloadEncryptionPasswordConfirm = this.FindControl<TextBox>(nameof(DownloadEncryptionPasswordConfirm)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadEncryptionPasswordConfirm");
+        DownloadEncryptCheckBox.IsCheckedChanged += (_, _) => DownloadEncryptionFields.IsVisible = DownloadEncryptCheckBox.IsChecked == true;
         DownloadModalStatus = this.FindControl<TextBlock>(nameof(DownloadModalStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: DownloadModalStatus");
         StartDownloadButton = this.FindControl<Button>(nameof(StartDownloadButton)) ?? throw new InvalidOperationException("Controle XAML não encontrado: StartDownloadButton");
         SettingsStatus = this.FindControl<TextBlock>(nameof(SettingsStatus)) ?? throw new InvalidOperationException("Controle XAML não encontrado: SettingsStatus");
@@ -856,6 +862,12 @@ public partial class MainWindow : Window
             : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         DownloadFolderPath.Text = folder;
         DownloadVerifyHashCheckBox.IsChecked = VerifyDownloadHash.IsChecked == true;
+        _downloadDecryptMode = file.DisplayName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase);
+        DownloadEncryptCheckBox.Content = _downloadDecryptMode ? "Descriptografar pacote OmniDrive (.odenc)" : "Compactar e criptografar o download";
+        DownloadEncryptCheckBox.IsChecked = false;
+        DownloadEncryptionFields.IsVisible = false;
+        DownloadEncryptionPassword.Text = "";
+        DownloadEncryptionPasswordConfirm.Text = "";
         DownloadModalSubtitle.Text = file.IsSplitFile
             ? $"Arquivo dividido em {file.ExpectedPartCount} partes. O OmniDrive verificará a disponibilidade antes de reconstruí-lo."
             : "O arquivo será baixado do serviço de origem.";
@@ -960,6 +972,28 @@ public partial class MainWindow : Window
         }
 
         var verifyHash = DownloadVerifyHashCheckBox.IsChecked == true;
+        var encryptOrDecryptDownload = DownloadEncryptCheckBox.IsChecked == true;
+        var encryptionPassword = DownloadEncryptionPassword.Text ?? "";
+        if (encryptOrDecryptDownload && string.IsNullOrWhiteSpace(encryptionPassword))
+        {
+            DownloadModalStatus.Text = "Informe a senha para continuar.";
+            return;
+        }
+        if (encryptOrDecryptDownload && !_downloadDecryptMode
+            && !string.Equals(encryptionPassword, DownloadEncryptionPasswordConfirm.Text ?? "", StringComparison.Ordinal))
+        {
+            DownloadModalStatus.Text = "As senhas não coincidem.";
+            return;
+        }
+        if (encryptOrDecryptDownload && _downloadDecryptMode && !file.DisplayName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase))
+        {
+            DownloadModalStatus.Text = "O arquivo selecionado não é um pacote criptografado do OmniDrive.";
+            return;
+        }
+        if (encryptOrDecryptDownload && !_downloadDecryptMode && !fileName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase))
+            fileName += ".zip.odenc";
+        if (encryptOrDecryptDownload && _downloadDecryptMode && fileName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase))
+            fileName = fileName[..^".odenc".Length];
         try
         {
             var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!);
@@ -1069,6 +1103,32 @@ public partial class MainWindow : Window
                     queueItem.Percentage = Math.Min(98, (double)(index + 1) / documents.Count * 98);
                     queueItem.Elapsed = FormatElapsed(DateTime.UtcNow - started);
                 }
+            }
+            if (encryptOrDecryptDownload)
+            {
+                var transformedPath = tempOutputPath + (_downloadDecryptMode ? ".decrypted" : ".encrypted");
+                try
+                {
+                    if (_downloadDecryptMode)
+                        await FileEncryptionService.DecryptFileAsync(tempOutputPath, transformedPath, encryptionPassword);
+                    else
+                    {
+                        var zipPath = tempOutputPath + ".zip";
+                        try
+                        {
+                            await Task.Run(() =>
+                            {
+                                using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+                                archive.CreateEntryFromFile(tempOutputPath, file.DisplayName, CompressionLevel.Optimal);
+                            });
+                            await FileEncryptionService.EncryptFileAsync(zipPath, transformedPath, encryptionPassword);
+                        }
+                        finally { try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { } }
+                    }
+                    File.Delete(tempOutputPath);
+                    File.Move(transformedPath, tempOutputPath);
+                }
+                finally { try { if (File.Exists(transformedPath)) File.Delete(transformedPath); } catch { } }
             }
             File.Move(tempOutputPath, outputPath);
             try { if (Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
@@ -1877,6 +1937,31 @@ public partial class MainWindow : Window
                 zipCheck.IsCheckedChanged += (_, _) => entry.Compress = zipCheck.IsChecked == true;
                 options.Children.Add(zipCheck);
             }
+            var encryptionCheck = new CheckBox { Content = "Compactar e criptografar", IsChecked = entry.Encrypt };
+            var encryptionFields = new StackPanel { Spacing = 6, IsVisible = entry.Encrypt };
+            var passwordBox = new TextBox { PasswordChar = '●', Watermark = "Senha de criptografia", Width = 320, Text = entry.EncryptionPassword };
+            passwordBox.TextChanged += (_, _) => entry.EncryptionPassword = passwordBox.Text ?? "";
+            encryptionCheck.IsCheckedChanged += (_, _) =>
+            {
+                entry.Encrypt = encryptionCheck.IsChecked == true;
+                encryptionFields.IsVisible = entry.Encrypt;
+                if (entry.Encrypt)
+                {
+                    entry.Compress = true;
+                    if (!entry.UploadName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                        entry.UploadName = entry.UploadName + ".zip";
+                    zipCheckIfPresent();
+                }
+            };
+            encryptionFields.Children.Add(new TextBlock { Text = "Senha (não será salva)", Classes = { "muted" }, FontSize = 11 });
+            encryptionFields.Children.Add(passwordBox);
+            fields.Children.Add(encryptionCheck);
+            fields.Children.Add(encryptionFields);
+            void zipCheckIfPresent()
+            {
+                foreach (var child in options.Children.OfType<CheckBox>())
+                    if (Equals(child.Content, "Compactar em ZIP")) child.IsChecked = entry.Compress;
+            }
             fields.Children.Add(options);
             card.Child = fields;
             UploadItemsPanel.Children.Add(card);
@@ -1904,6 +1989,13 @@ public partial class MainWindow : Window
             UploadModalStatus.Text = "Informe um nome válido para cada arquivo.";
             return;
         }
+        if (_pendingUploads.Any(entry => entry.Encrypt && string.IsNullOrWhiteSpace(entry.EncryptionPassword)))
+        {
+            UploadModalStatus.Text = "Informe uma senha para cada arquivo que será criptografado.";
+            return;
+        }
+        foreach (var entry in _pendingUploads)
+            if (entry.Encrypt) entry.Compress = true;
 
         var button = sender as Button;
         if (button is not null) button.IsEnabled = false;
@@ -1935,6 +2027,7 @@ public partial class MainWindow : Window
                 queueItem.ProgressLabel = "Preparando arquivo";
                 queueItem.PartDescription = "Preparando arquivo";
                 string? tempPath = null;
+                string? encryptedTempPath = null;
                 try
                 {
                     var sourcePath = entry.SourcePath;
@@ -1964,6 +2057,21 @@ public partial class MainWindow : Window
                         }
                         sourcePath = tempPath;
                         if (!uploadName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) uploadName += ".zip";
+                    }
+
+                    if (entry.Encrypt)
+                    {
+                        if (string.IsNullOrWhiteSpace(tempPath))
+                            throw new InvalidOperationException("A criptografia exige que o arquivo seja compactado primeiro.");
+                        encryptedTempPath = Path.Combine(Path.GetTempPath(), $"OmniDrive_{Guid.NewGuid():N}.odenc");
+                        queueItem.ProgressLabel = "Criptografando pacote";
+                        UploadModalStatus.Text = queueItem.ProgressLabel;
+                        await FileEncryptionService.EncryptFileAsync(tempPath, encryptedTempPath, entry.EncryptionPassword);
+                        try { File.Delete(tempPath); } catch { }
+                        tempPath = encryptedTempPath;
+                        encryptedTempPath = null;
+                        sourcePath = tempPath;
+                        if (!uploadName.EndsWith(".odenc", StringComparison.OrdinalIgnoreCase)) uploadName += ".odenc";
                     }
 
                     if (!File.Exists(sourcePath))
@@ -2072,6 +2180,10 @@ public partial class MainWindow : Window
                     if (tempPath is not null)
                     {
                         try { File.Delete(tempPath); } catch { }
+                    }
+                    if (encryptedTempPath is not null)
+                    {
+                        try { File.Delete(encryptedTempPath); } catch { }
                     }
                 }
             }
@@ -2324,6 +2436,8 @@ public partial class MainWindow : Window
         public UploadDestination? Destination { get; set; }
         public bool VerifyHash { get; set; }
         public bool Compress { get; set; }
+        public bool Encrypt { get; set; }
+        public string EncryptionPassword { get; set; } = string.Empty;
         public bool IsFolder { get; init; }
     }
 
