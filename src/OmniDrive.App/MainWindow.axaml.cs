@@ -566,13 +566,15 @@ public partial class MainWindow : Window
                 }
             }
 
-            foreach (var item in CloudFiles)
-                item.IsFavorite = _favoriteKeys.Contains(GetFavoriteKey(item));
-
+            // Agrupe as partes antes de aplicar favoritos: arquivos divididos só têm uma chave
+            // estável depois que o grupo SHA-256 + timestamp é reconstruído.
             var sorted = GroupSplitFiles(CloudFiles.ToList())
                 .OrderBy(file => file.IsFolder ? 0 : 1)
                 .ThenByDescending(file => file.MessageDate)
                 .ToList();
+            foreach (var item in sorted)
+                item.IsFavorite = _favoriteKeys.Contains(GetFavoriteKey(item));
+
             _loadedCloudFiles = sorted;
             ApplyCurrentFilters();
 
