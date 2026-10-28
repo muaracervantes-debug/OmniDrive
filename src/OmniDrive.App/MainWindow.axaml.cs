@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
     private bool _hasSavedTelegramCredentials;
+    private bool _editingTelegramCredential;
     private string? _telegramPendingKind;
     private bool _telegramResendRequested;
     private readonly List<string> _connections = new();
@@ -2816,6 +2817,7 @@ public partial class MainWindow : Window
         TelegramApiId.Text = credentials.ApiId;
         TelegramApiHash.Text = credentials.ApiHash;
         TelegramPhone.Text = credentials.PhoneNumber;
+        _editingTelegramCredential = true;
         TelegramConnectButton.Content = "Salvar alterações e conectar";
         TelegramSetupOverlay.IsVisible = true;
         TelegramStatus.Text = "Edite os dados desta credencial. As alterações serão salvas apenas para a conta do Telegram configurada aqui.";
@@ -2823,6 +2825,8 @@ public partial class MainWindow : Window
 
     private void ShowTelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
+        _editingTelegramCredential = false;
+        TelegramConnectButton.Content = "Salvar e conectar";
         TelegramSetupOverlay.IsVisible = true;
         TelegramApiId?.Focus();
         SettingsStatus.Text = "Informe as credenciais da aplicação e o número internacional da conta.";
@@ -2861,10 +2865,33 @@ public partial class MainWindow : Window
 
     private async void TelegramConnect_Click(object? sender, RoutedEventArgs e)
     {
-        if (_telegramClient?.User is not null)
+        if (_telegramClient?.User is not null && !_editingTelegramCredential)
         {
             TelegramStatus.Text = $"Já conectado ao Telegram como {_telegramClient.User}.";
             return;
+        }
+
+        if (_telegramClient?.User is not null && _editingTelegramCredential)
+        {
+            var editedName = TelegramConnectionName.Text?.Trim();
+            var editedApiIdText = TelegramApiId.Text?.Trim();
+            var editedApiHash = TelegramApiHash.Text?.Trim();
+            var editedPhone = TelegramPhone.Text?.Trim() ?? "";
+            var editedPhoneDigits = new string(editedPhone.Where(char.IsDigit).ToArray());
+            if (string.IsNullOrWhiteSpace(editedName) || !int.TryParse(editedApiIdText, out var editedApiId) || editedApiId <= 0 ||
+                string.IsNullOrWhiteSpace(editedApiHash) || editedPhoneDigits.Length == 0)
+            {
+                TelegramStatus.Text = "Informe o nome, API ID, API Hash e telefone para salvar a credencial.";
+                return;
+            }
+
+            TelegramCredentialStore.Save(new TelegramCredentials(editedApiId.ToString(), editedApiHash, "+" + editedPhoneDigits, editedName));
+            _telegramClient.Dispose();
+            _telegramClient = null;
+            _telegramPendingKind = null;
+            _editingTelegramCredential = false;
+            TelegramConnectButton.Content = "Salvar e conectar";
+            UpdateTelegramConnectionSummary();
         }
 
         TelegramConnectButton.IsEnabled = false;
