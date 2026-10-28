@@ -24,7 +24,7 @@ public sealed class TelegramFileItem
     public bool IsFolder { get; }
     public string Icon => IsFolder ? "📁" : "▤";
     public string? FolderKey { get; }
-    public bool IsFavorite { get; }
+    public bool IsFavorite { get; set; }
     public bool HasSavedHash { get; }
     public string? SavedHash { get; }
 
