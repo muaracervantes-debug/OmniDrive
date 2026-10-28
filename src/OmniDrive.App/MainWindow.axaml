@@ -125,10 +125,11 @@
             <StackPanel Spacing="6">
               <TextBlock Text="CONFIGURAÇÕES" Classes="muted" FontSize="10" FontWeight="Bold" Margin="8,8,0,10"/>
               <Button Classes="nav selected" Tag="connect" Click="SettingsSection_Click" Content="Conectar serviços"/>
-              <Button Classes="nav" Tag="upload" Click="SettingsSection_Click" Content="Limites de upload"/>
-              <Button Classes="nav" Tag="transfers" Click="SettingsSection_Click" Content="Transferências simultâneas"/>
-              <Button Classes="nav" Tag="integrity" Click="SettingsSection_Click" Content="Integridade"/>
-              <Button Classes="nav" Tag="folder" Click="SettingsSection_Click" Content="Pasta de download padrão"/>
+              <Button Classes="nav" Tag="transfers" Click="SettingsSection_Click" Content="Transferência"/>
+              
+              
+              
+              
               <Button Classes="nav" Tag="security" Click="SettingsSection_Click" Content="Segurança"/>
             </StackPanel>
           </Border>
@@ -175,7 +176,17 @@
               </Border>
             </StackPanel>
           </ScrollViewer>
-          <ScrollViewer x:Name="SettingsUploadPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+          
+          
+          
+          
+          <ScrollViewer x:Name="SettingsTransfersPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16">
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Transferência" FontSize="25" FontWeight="Bold"/>
+                <TextBlock Text="Configure limites, simultaneidade, integridade e pasta de destino dos downloads." Classes="muted" FontSize="12" TextWrapping="Wrap"/>
+              </StackPanel>
+<Border Classes="panel" Padding="18">
               <StackPanel Spacing="14">
                 <StackPanel Spacing="4"><TextBlock Text="Limites de upload" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Defina um limite adicional por conexão. Os limites reais impostos pelo serviço continuam valendo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="220,180,Auto" ColumnSpacing="10">
@@ -185,8 +196,8 @@
                 </Grid>
                 <TextBlock Text="Ao colocar 0 não haverá limite de upload." Foreground="#D6A8FF" FontSize="12"/>
               </StackPanel>
-            </Border></StackPanel></ScrollViewer>
-          <ScrollViewer x:Name="SettingsTransfersPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+            </Border>
+<Border Classes="panel" Padding="18">
               <StackPanel Spacing="14">
                 <StackPanel Spacing="4"><TextBlock Text="Transferências simultâneas" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="O excedente permanece na fila até que uma transferência ativa termine." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="220,180,220,180" ColumnSpacing="10">
@@ -197,8 +208,8 @@
                 </Grid>
                 <Button Classes="action" HorizontalAlignment="Right" Click="SaveTransferSettings_Click" Content="Salvar limites de transferência"/>
               </StackPanel>
-            </Border></StackPanel></ScrollViewer>
-          <ScrollViewer x:Name="SettingsIntegrityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+            </Border>
+<Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
                 <StackPanel Spacing="4"><TextBlock Text="Integridade" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Cada verificação pode ser ativada ou desativada independentemente." Classes="muted" FontSize="12"/></StackPanel>
                 <CheckBox x:Name="VerifyUploadHash" Content="Criar hash durante o upload" IsChecked="True" Checked="IntegrityOption_Changed" Unchecked="IntegrityOption_Changed"/>
@@ -207,8 +218,8 @@
                 <TextBlock x:Name="DownloadIntegrityWarning" Text="Desativar esta opção significa que a integridade do download não será confirmada por hash; a operação pode ser mais rápida." Foreground="#E5A94D" FontSize="11" TextWrapping="Wrap" IsVisible="False" Margin="24,0,0,0"/>
                 <Button Classes="action" HorizontalAlignment="Right" Click="SaveIntegritySettings_Click" Content="Salvar opções de integridade"/>
               </StackPanel>
-            </Border></StackPanel></ScrollViewer>
-          <ScrollViewer x:Name="SettingsFolderPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
+            </Border>
+<Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
                 <StackPanel Spacing="4"><TextBlock Text="Pasta de download padrão" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="Esta pasta será sugerida ao abrir a janela de download. Você ainda poderá escolher outra pasta para cada arquivo." Classes="muted" FontSize="12" TextWrapping="Wrap"/></StackPanel>
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
@@ -217,7 +228,9 @@
                   <Button Grid.Column="2" Classes="ghost" Content="Limpar" Click="ClearDefaultDownloadFolder_Click"/>
                 </Grid>
               </StackPanel>
-            </Border></StackPanel></ScrollViewer>
+            </Border>
+            </StackPanel>
+          </ScrollViewer>
           <ScrollViewer x:Name="SettingsSecurityPage" IsVisible="False" Grid.Column="1" Margin="24,22,16,16"><StackPanel Spacing="16"><StackPanel Spacing="4"><TextBlock Text="Configurações" FontSize="25" FontWeight="Bold"/><TextBlock Text="Gerencie cada categoria pelo menu lateral." Classes="muted" FontSize="12"/></StackPanel><Border Classes="panel" Padding="18">
               <StackPanel Spacing="12">
                 <TextBlock Text="Segurança" FontSize="17" FontWeight="SemiBold"/>
