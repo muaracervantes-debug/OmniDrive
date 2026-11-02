@@ -2984,7 +2984,7 @@ public partial class MainWindow : Window
             UploadLimitValue.Text = _uploadLimits.TryGetValue(selected, out var limit) ? limit : "0";
     }
 
-    private void SaveUploadLimit_Click(object? sender, RoutedEventArgs e)
+    private void UploadLimitValue_LostFocus(object? sender, RoutedEventArgs e)
     {
         if (UploadLimitConnection.SelectedItem is not string selected)
         {
@@ -3000,12 +3000,10 @@ public partial class MainWindow : Window
 
         _uploadLimits[selected] = limit.ToString();
         SaveSettings();
-        SettingsStatus.Text = limit == 0
-            ? "Limite salvo: não haverá limite adicional de upload definido pelo usuário. Os limites do serviço continuam valendo."
-            : $"Limite de upload salvo para {selected}: {limit} MB. Os limites do serviço continuam valendo.";
+        SettingsStatus.Text = "Limite de upload atualizado automaticamente.";
     }
 
-    private void SaveTransferSettings_Click(object? sender, RoutedEventArgs e)
+    private void TransferSetting_LostFocus(object? sender, RoutedEventArgs e)
     {
         if (!int.TryParse(MaxUploadsValue.Text, out var uploads) || uploads < 1 ||
             !int.TryParse(MaxDownloadsValue.Text, out var downloads) || downloads < 1)
@@ -3015,11 +3013,18 @@ public partial class MainWindow : Window
         }
 
         SaveSettings();
-        SettingsStatus.Text = $"Preferências salvas: até {uploads} uploads e {downloads} downloads simultâneos. A fila depende da integração do mecanismo de transferências.";
+        SettingsStatus.Text = "Configurações de transferência atualizadas automaticamente.";
     }
 
-    private void IntegrityOption_Changed(object? sender, RoutedEventArgs e) =>
+    private void IntegrityOption_Changed(object? sender, RoutedEventArgs e)
+    {
         UpdateIntegrityWarnings();
+        if (IsLoaded)
+        {
+            SaveSettings();
+            SettingsStatus.Text = "Opções de integridade atualizadas automaticamente.";
+        }
+    }
 
     private void UpdateIntegrityWarnings()
     {
@@ -3029,12 +3034,6 @@ public partial class MainWindow : Window
             UploadIntegrityWarning.IsVisible = VerifyUploadHash.IsChecked != true;
         if (DownloadIntegrityWarning is not null && VerifyDownloadHash is not null)
             DownloadIntegrityWarning.IsVisible = VerifyDownloadHash.IsChecked != true;
-    }
-
-    private void SaveIntegritySettings_Click(object? sender, RoutedEventArgs e)
-    {
-        SaveSettings();
-        SettingsStatus.Text = "Preferências de verificação de hash salvas localmente. A verificação efetiva será usada quando o mecanismo de transferências for integrado.";
     }
 
     private void RefreshConnectionControls(string? select = null)
