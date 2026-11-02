@@ -1255,6 +1255,16 @@ public partial class MainWindow : Window
                 Header = "Abrir pasta",
                 Command = new RelayUiCommand(() => NavigateToFolder(file))
             });
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Renomear",
+                Command = new RelayUiCommand(() => _ = RenameTelegramFolderAsync(file))
+            });
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Excluir",
+                Command = new RelayUiCommand(() => _ = DeleteTelegramFolderAsync(file))
+            });
             menu.Open(CloudFilesList);
             return;
         }
@@ -1407,6 +1417,101 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             TelegramFilesStatus.Text = $"Não foi possível concluir a movimentação: {ex.Message}. Confira as pastas de origem e destino antes de tentar novamente.";
+        }
+    }
+
+    private async Task RenameTelegramFolderAsync(TelegramFileItem folder)
+    {
+        if (_telegramClient?.User is null || folder.Peer is not InputPeerChannel channelPeer)
+        {
+            TelegramFilesStatus.Text = "Não foi possível acessar esta pasta no Telegram.";
+            return;
+        }
+
+        var nameBox = new TextBox { Text = folder.DisplayName, MinWidth = 330, Watermark = "Novo nome da pasta" };
+        var dialog = new Window
+        {
+            Title = "Renomear pasta",
+            Width = 420,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Avalonia.Media.Brush.Parse("#201D28"),
+            Padding = new Thickness(22)
+        };
+        var panel = new StackPanel { Spacing = 14 };
+        panel.Children.Add(new TextBlock { Text = "O nome da pasta será atualizado diretamente no Telegram.", TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+        panel.Children.Add(nameBox);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 10 };
+        var cancel = new Button { Content = "Cancelar", MinWidth = 90 };
+        cancel.Click += (_, _) => dialog.Close((string?)null);
+        var rename = new Button { Content = "Renomear", MinWidth = 90 };
+        rename.Click += (_, _) => dialog.Close(nameBox.Text?.Trim());
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(rename);
+        panel.Children.Add(buttons);
+        dialog.Content = panel;
+
+        var requestedName = await dialog.ShowDialog<string?>(this);
+        var newName = requestedName?.Trim();
+        if (string.IsNullOrWhiteSpace(newName) || newName == folder.DisplayName)
+            return;
+        if (newName.Contains('\\n') || newName.Contains('\\r') || newName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
+        {
+            TelegramFilesStatus.Text = "Informe um nome válido para a pasta.";
+            return;
+        }
+
+        try
+        {
+            await _telegramClient.Channels_EditTitle(
+                new InputChannel(channelPeer.channel_id, channelPeer.access_hash),
+                newName + TelegramFolderMarker);
+            await LoadTelegramFilesAsync();
+            TelegramFilesStatus.Text = $"Pasta renomeada para “{newName}”.";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível renomear a pasta: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteTelegramFolderAsync(TelegramFileItem folder)
+    {
+        if (_telegramClient?.User is null || folder.Peer is not InputPeerChannel channelPeer
+            || string.IsNullOrWhiteSpace(folder.FolderKey))
+        {
+            TelegramFilesStatus.Text = "Não foi possível acessar esta pasta no Telegram.";
+            return;
+        }
+
+        try
+        {
+            await _telegramClient.Channels_DeleteChannel(
+                new InputChannel(channelPeer.channel_id, channelPeer.access_hash));
+
+            var removedKeys = new HashSet<string>(StringComparer.Ordinal) { folder.FolderKey };
+            var changed = true;
+            while (changed)
+            {
+                changed = false;
+                foreach (var pair in _folderParents.ToList())
+                {
+                    if (pair.Value is not null && removedKeys.Contains(pair.Value) && removedKeys.Add(pair.Key))
+                        changed = true;
+                }
+            }
+            foreach (var key in removedKeys)
+                _folderParents.Remove(key);
+            SaveTelegramFolderMap();
+            _folderPath.RemoveAll(item => removedKeys.Contains(item.Key));
+            UpdateBreadcrumb();
+            await LoadTelegramFilesAsync();
+            TelegramFilesStatus.Text = $"Pasta “{folder.DisplayName}” excluída do Telegram.";
+        }
+        catch (Exception ex)
+        {
+            TelegramFilesStatus.Text = $"Não foi possível excluir a pasta: {ex.Message}";
         }
     }
 
