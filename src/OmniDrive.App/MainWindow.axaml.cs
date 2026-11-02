@@ -1704,14 +1704,6 @@ public partial class MainWindow : Window
         }
 
         var foldersSkipped = requestedFiles.Count - files.Count;
-        var description = files.Count == 1
-            ? $"excluir “{files[0].DisplayName}”"
-            : $"excluir {files.Count} arquivos selecionados";
-        if (!await ConfirmActionAsync(
-                "Confirmar exclusão",
-                $"O OmniDrive vai {description} diretamente do Telegram. Arquivos divididos serão excluídos com suas partes associadas ao UUID. Esta ação pode não ser reversível. Deseja continuar?"))
-            return;
-
         var deleted = 0;
         var failures = new List<string>();
         foreach (var file in files)
