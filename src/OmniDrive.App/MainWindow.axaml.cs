@@ -47,7 +47,6 @@ public partial class MainWindow : Window
     private bool _telegramResendRequested;
     private readonly List<string> _connections = new();
     private readonly Dictionary<string, string> _uploadLimits = new();
-    private int _completedTransfers;
     private TransferQueueItem? _selectedTransfer;
     public ObservableCollection<TransferQueueItem> TransferQueue { get; } = new();
     public ObservableCollection<TelegramFileItem> CloudFiles { get; } = new();
