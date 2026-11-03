@@ -1,63 +1,67 @@
 # OmniDrive
 
-Gerenciador de armazenamento digital para desktop que reúne diferentes serviços de armazenamento em uma única interface.
+Gerenciador de armazenamento digital para desktop que reúne serviços de armazenamento em uma única interface.
 
-O usuário deve poder navegar, pesquisar, organizar, enviar, baixar e transferir arquivos entre várias contas sem precisar abrir cada serviço separadamente.
+O objetivo é permitir navegar, pesquisar, organizar, enviar, baixar e transferir arquivos sem precisar abrir cada serviço separadamente.
 
-## Objetivos
+## Estado atual
 
-- Reunir múltiplas contas e serviços em uma interface desktop unificada.
-- Oferecer operações comuns de arquivos por meio de uma experiência consistente.
-- Exibir apenas as operações compatíveis com o serviço conectado e com o item selecionado.
-- Permitir adicionar novos provedores sem reescrever a interface ou a lógica comum.
-- Tratar diferenças e limitações de cada provedor explicitamente, sem prometer operações que ele não suporta.
+O aplicativo desktop em C#/.NET 10 usa Avalonia e possui uma integração funcional com Telegram implementada atualmente na camada de interface (OmniDrive.App). Entre os recursos já desenvolvidos estão conexão e autenticação do Telegram, listagem e organização de mídias, favoritos, upload, download, divisão de arquivos, fila de transferências, verificação SHA-256, criptografia e senha de inicialização.
 
-## Serviços
+**Atenção à arquitetura:** os contratos independentes de provedor já existem em OmniDrive.Core e OmniDrive.Application, mas a integração Telegram ainda não foi migrada para o projeto OmniDrive.Providers.Telegram. Portanto, a aplicação ainda não utiliza esses contratos como caminho principal para executar as operações reais.
 
-### Telegram — primeira integração
-
-A primeira integração será com o Telegram, usando a biblioteca [WTelegramClient](https://github.com/wiz0u/WTelegramClient). A implementação deve respeitar as capacidades e limitações da API do Telegram e distinguir arquivos/mídias de outros tipos de mensagens.
-
-### Integrações futuras
-
-A arquitetura deve permitir acrescentar provedores por meio de adaptadores independentes. A interface não deve depender diretamente de tipos específicos do Telegram.
+A solução está em desenvolvimento. A compilação e os testes automatizados devem ser verificados antes de considerar qualquer versão estável.
 
 ## Tecnologias
 
 - C#
-- .NET
-- WTelegramClient para a integração com Telegram
+- .NET 10
+- Avalonia UI
+- WTelegramClient
+- xUnit para testes automatizados
 
-A versão do .NET e a tecnologia de interface desktop serão definidas durante a implementação inicial, levando em conta compatibilidade, manutenção e suporte multiplataforma quando aplicável.
+## Estrutura
 
-## Princípios de arquitetura
+    OmniDrive/
+    ├── src/
+    │   ├── OmniDrive.App/                  # Interface desktop e integração Telegram atual
+    │   ├── OmniDrive.Core/                 # Modelos e contratos comuns
+    │   ├── OmniDrive.Application/          # Registro e orquestração compartilhada
+    │   └── OmniDrive.Providers.Telegram/   # Destino da futura migração do adaptador Telegram
+    ├── tests/
+    │   ├── OmniDrive.Core.Tests/
+    │   └── OmniDrive.Application.Tests/
+    ├── docs/
+    └── OmniDrive.slnx
 
-1. **Abstração por provedor:** cada serviço implementa um contrato comum de integração.
-2. **Capacidades explícitas:** os provedores e os itens expõem quais operações suportam; a interface usa essas informações para habilitar ou ocultar ações.
-3. **Modelos comuns:** a interface trabalha com modelos independentes do provedor para itens, diretórios/locais, contas, resultados de pesquisa e operações.
-4. **Separação de responsabilidades:** interface, casos de uso, contratos de domínio e integrações externas ficam separados.
-5. **Operações assíncronas:** chamadas de rede e transferências não devem bloquear a interface; progresso, cancelamento quando possível e erros devem ser comunicados claramente.
-6. **Segurança de credenciais:** segredos e sessões não devem ser versionados no Git nem registrados em logs. A persistência local deve usar armazenamento apropriado para credenciais.
-7. **Limitações transparentes:** operações não suportadas devem ser identificadas como indisponíveis, em vez de simuladas ou falharem silenciosamente.
-8. **Testabilidade:** a lógica comum deve poder ser testada sem conexão real com um serviço.
+## Princípios
 
-## Funcionalidades previstas
+- **Abstração por provedor:** cada serviço deve implementar IStorageProvider.
+- **Capacidades explícitas:** as operações disponíveis variam por serviço e item.
+- **Modelos independentes:** a interface não deve depender de tipos do Telegram.
+- **Operações assíncronas:** rede e transferências não devem bloquear a interface.
+- **Integridade dos arquivos:** validar transferências, preservar origens e evitar sobrescritas silenciosas.
+- **Desempenho:** streaming, paginação, concorrência limitada e carregamento sob demanda.
+- **Segurança:** credenciais e sessões fora do controle de versão, tratamento seguro de dados e dependências mantidas.
+- **Testabilidade:** a lógica comum deve poder ser testada sem contas reais.
 
-- Gerenciar conexões/contas de provedores.
-- Navegar pelos itens disponibilizados por cada provedor.
-- Pesquisar arquivos e mídias, respeitando os recursos de cada provedor.
-- Exibir metadados relevantes, como nome, tamanho, tipo e data, quando disponíveis.
-- Enviar e baixar arquivos quando suportado.
-- Organizar itens quando o serviço oferecer operações correspondentes.
-- Transferir arquivos entre provedores por meio de download e upload intermediários quando necessário, com tratamento de progresso, falhas e espaço temporário.
-- Apresentar erros, limites e operações incompatíveis de forma compreensível.
+As regras obrigatórias estão detalhadas em docs/engineering-principles.md. A arquitetura planejada está descrita em docs/architecture.md.
 
-Esta lista representa os objetivos do projeto, não uma declaração de funcionalidades já implementadas.
+## Executar
 
-## Direção inicial
+Instale o SDK do .NET 10. Na raiz do repositório:
 
-A primeira etapa de implementação deverá estabelecer a solução .NET, a aplicação desktop, os contratos comuns de provedores e os testes. Em seguida, será integrada a autenticação do Telegram e implementado um fluxo vertical mínimo de navegação e download antes de ampliar as operações.
+    dotnet restore OmniDrive.slnx
+    dotnet build OmniDrive.slnx
+    dotnet test OmniDrive.slnx
+    dotnet run --project src/OmniDrive.App/OmniDrive.App.csproj
 
-## Estado atual
+## Testes e publicação
 
-O repositório está no estágio inicial. A documentação descreve os objetivos e as diretrizes arquiteturais; as funcionalidades listadas ainda precisam ser implementadas e verificadas.
+O workflow Build Windows preview restaura a solução, executa os testes automatizados e, somente se eles passarem, publica o executável Windows x64 como artefato do GitHub Actions.
+
+## Telegram
+
+O Telegram é a primeira integração. Como é uma plataforma de mensagens, e não um sistema de arquivos convencional, a integração mapeia mensagens e mídias elegíveis para itens comuns e deve expor somente operações realmente suportadas pela API.
+
+A implementação atual ainda está concentrada em OmniDrive.App; a migração para OmniDrive.Providers.Telegram é uma etapa arquitetural futura.
