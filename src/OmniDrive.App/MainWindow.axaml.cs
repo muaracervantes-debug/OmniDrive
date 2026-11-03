@@ -1457,7 +1457,7 @@ public partial class MainWindow : Window
         var newName = requestedName?.Trim();
         if (string.IsNullOrWhiteSpace(newName) || newName == folder.DisplayName)
             return;
-        if (newName.Contains('\\n') || newName.Contains('\\r') || newName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
+        if (newName.Contains('\n') || newName.Contains('\r') || newName.EndsWith(TelegramFolderMarker, StringComparison.Ordinal))
         {
             TelegramFilesStatus.Text = "Informe um nome válido para a pasta.";
             return;
