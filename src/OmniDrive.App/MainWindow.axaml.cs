@@ -2500,7 +2500,7 @@ public partial class MainWindow : Window
                         {
                             // WTelegramClient não expõe cancelamento para DownloadFileAsync.
                             // Aguarda a parte atual terminar antes de fechar o stream com segurança.
-                            await downloadTask;
+                            try { await downloadTask; } catch { }
                             cancellationToken.ThrowIfCancellationRequested();
                         }
                         progress?.Invoke(output.Length);
