@@ -20,6 +20,7 @@ public sealed class TransferQueueItem : INotifyPropertyChanged
     private bool _cancelRequested;
     private bool _canRetry;
     public Func<Task>? RetryAction { get; set; }
+    public CancellationTokenSource? CancellationSource { get; set; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
