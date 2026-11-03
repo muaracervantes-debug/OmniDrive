@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private TransferQueueItem? _selectedTransfer;
     public ObservableCollection<TransferQueueItem> TransferQueue { get; } = new();
     public ObservableCollection<TelegramFileItem> CloudFiles { get; } = new();
+    public ObservableCollection<string> CredentialEntries { get; } = new();
     private readonly string _settingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "OmniDrive",
@@ -60,6 +61,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         TransferItemsList.ItemsSource = TransferQueue;
+        this.FindControl<ListBox>("CredentialList")!.ItemsSource = CredentialEntries;
         CloudFilesList = this.FindControl<ListBox>(nameof(CloudFilesList)) ?? throw new InvalidOperationException("Controle XAML não encontrado: CloudFilesList");
         CloudFilesList.ItemsSource = CloudFiles;
         CloudFilesList.SelectionChanged += CloudFilesList_SelectionChanged;
@@ -3069,19 +3071,52 @@ public partial class MainWindow : Window
     private void UpdateTelegramConnectionSummary()
     {
         var credentials = TelegramCredentialStore.Load();
+        CredentialEntries.Clear();
+
         if (credentials is null)
         {
             TelegramConnectionSummary.Text = "Nenhuma credencial salva";
             TelegramCardConnectButton.Content = "＋ Conectar";
+            this.FindControl<TextBlock>("CredentialsEmptyState")!.IsVisible = true;
+            this.FindControl<ListBox>("CredentialList")!.IsVisible = false;
             return;
         }
 
         var name = string.IsNullOrWhiteSpace(credentials.Name) ? "Telegram" : credentials.Name;
-        var account = _telegramClient?.User is not null
-            ? $"Conectado como {_telegramClient.User}"
+        var connected = _telegramClient?.User is not null;
+        var account = connected
+            ? $"Conectado como {_telegramClient!.User}"
             : "Credencial salva · reconexão automática ao iniciar";
         TelegramConnectionSummary.Text = $"{name} · {account}";
-        TelegramCardConnectButton.Content = "＋ Adicionar/Conectar";
+        TelegramCardConnectButton.Content = "＋ Conectar";
+
+        var phone = string.IsNullOrWhiteSpace(credentials.PhoneNumber) ? "" : $" · {credentials.PhoneNumber}";
+        CredentialEntries.Add($"Telegram · {name}{phone} · {(connected ? "Conectado" : "Credencial salva")}");
+        this.FindControl<TextBlock>("CredentialsEmptyState")!.IsVisible = false;
+        this.FindControl<ListBox>("CredentialList")!.IsVisible = true;
+    }
+
+    private void CredentialEdit_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CredentialEntries.Count == 0)
+        {
+            SettingsStatus.Text = "Não há credenciais para editar.";
+            return;
+        }
+
+        EditTelegramCredential_Click(sender, e);
+    }
+
+    private void CredentialDelete_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CredentialEntries.Count == 0)
+        {
+            SettingsStatus.Text = "Não há credenciais para excluir.";
+            return;
+        }
+
+        TelegramForget_Click(sender, e);
+        SettingsStatus.Text = "Credencial do Telegram excluída.";
     }
 
     private void EditTelegramCredential_Click(object? sender, RoutedEventArgs e)
