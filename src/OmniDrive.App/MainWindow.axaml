@@ -150,14 +150,28 @@
                 </Grid>
               </Border>
               <Border Background="#25212D" BorderBrush="#393242" BorderThickness="1" CornerRadius="15" Padding="16">
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <StackPanel Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="Telegram" FontSize="14" FontWeight="SemiBold" Foreground="#F4F0FA"/>
                     <TextBlock x:Name="TelegramConnectionSummary" Text="Nenhuma credencial salva" FontSize="11" Foreground="#A49CAF" TextWrapping="Wrap"/>
                   </StackPanel>
-                  <Button Grid.Column="1" Classes="ghost" Content="Editar" Click="EditTelegramCredential_Click" VerticalAlignment="Center" MinWidth="80"/>
-                  <Button x:Name="TelegramCardConnectButton" Grid.Column="2" Classes="action" Content="＋ Conectar" Click="ShowTelegramConnect_Click" VerticalAlignment="Center" MinWidth="104"/>
+                  <Button x:Name="TelegramCardConnectButton" Grid.Column="1" Classes="action" Content="＋ Conectar" Click="ShowTelegramConnect_Click" VerticalAlignment="Center" MinWidth="104"/>
                 </Grid>
+              </Border>
+              <Border Background="#201D28" BorderBrush="#332D3D" BorderThickness="1" CornerRadius="15" Padding="16">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="Credenciais conectadas" FontSize="14" FontWeight="SemiBold" Foreground="#F4F0FA"/>
+                  <TextBlock x:Name="CredentialsEmptyState" Text="Nenhuma credencial conectada." FontSize="11" Foreground="#746D83" TextWrapping="Wrap"/>
+                  <ListBox x:Name="CredentialList" MaxHeight="220" MinHeight="48" Background="#25212D" Foreground="#F4F0FA" BorderBrush="#393242" BorderThickness="1" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Editar" Click="CredentialEdit_Click"/>
+                        <MenuItem Header="Excluir" Click="CredentialDelete_Click"/>
+                      </ContextMenu>
+                    </ListBox.ContextMenu>
+                  </ListBox>
+                  <TextBlock Text="Clique com o botão direito em uma credencial para editar ou excluir." FontSize="10" Foreground="#746D83" TextWrapping="Wrap"/>
+                </StackPanel>
               </Border>
               <Border IsVisible="False">
                 <StackPanel Spacing="12">
