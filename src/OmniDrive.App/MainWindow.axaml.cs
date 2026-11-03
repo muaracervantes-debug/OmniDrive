@@ -1075,7 +1075,8 @@ public partial class MainWindow : Window
             Status = "Aguardando",
             ProgressLabel = "Aguardando",
             Size = file.SizeLabel,
-            Elapsed = "0 s"
+            Elapsed = "0 s",
+            CancellationSource = new CancellationTokenSource()
         };
         TransferQueue.Add(queueItem);
         TransferQueuePanel.IsVisible = true;
@@ -1084,6 +1085,8 @@ public partial class MainWindow : Window
         StartDownloadButton.IsEnabled = false;
         var started = DateTime.UtcNow;
         var tempOutputPath = outputPath + $".{Guid.NewGuid():N}.download";
+        var cancellationToken = queueItem.CancellationSource!.Token;
+        string? cacheDirectory = null;
         try
         {
             queueItem.Status = "Em andamento";
@@ -1093,12 +1096,13 @@ public partial class MainWindow : Window
             var orderedParts = file.IsSplitFile ? file.Parts.OrderBy(part => part.PartNumber).ToList() : new List<TelegramFilePart>();
             var cacheIdentity = file.IsSplitFile ? file.SplitUuid! : $"{file.ChatName}_{file.MessageId}_{file.Name}";
             var cacheKey = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(cacheIdentity)));
-            var cacheDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "download-cache", cacheKey);
+            cacheDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniDrive", "download-cache", cacheKey);
             Directory.CreateDirectory(cacheDirectory);
             await using (var output = new FileStream(tempOutputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 for (var index = 0; index < documents.Count; index++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
                     var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
                     var canCache = !string.IsNullOrWhiteSpace(expectedHash);
@@ -1139,11 +1143,12 @@ public partial class MainWindow : Window
                                         queueItem.Remaining = "Restante: " + FormatElapsed(TimeSpan.FromSeconds(Math.Min(remainingSeconds, 31536000d)));
                                         queueItem.Percentage = Math.Clamp((double)totalBytes / file.SizeBytes * 100d, 0d, 99d);
                                     }
-                                });
+                                }, cancellationToken: cancellationToken);
                         }
 
+                        cancellationToken.ThrowIfCancellationRequested();
                         await using var partStream = File.OpenRead(tempPartPath);
-                        await partStream.CopyToAsync(output);
+                        await partStream.CopyToAsync(output, cancellationToken);
                     }
                     finally
                     {
@@ -1200,6 +1205,18 @@ public partial class MainWindow : Window
                 ? $"Arquivo reconstruído com {documents.Count} partes: {outputPath}"
                 : $"Download concluído: {outputPath}";
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            try { if (File.Exists(tempOutputPath)) File.Delete(tempOutputPath); } catch { }
+            try { if (cacheDirectory is not null && Directory.Exists(cacheDirectory)) Directory.Delete(cacheDirectory, recursive: true); } catch { }
+            queueItem.Status = "Cancelado";
+            queueItem.ProgressLabel = "Download cancelado; partes temporárias removidas.";
+            queueItem.PartDescription = "Partes baixadas removidas";
+            queueItem.CanRetry = false;
+            queueItem.RetryAction = null;
+            queueItem.Percentage = 0;
+            TelegramFilesStatus.Text = $"Download de “{file.DisplayName}” cancelado. As partes já baixadas foram excluídas.";
+        }
         catch (Exception ex)
         {
             try { if (File.Exists(tempOutputPath)) File.Delete(tempOutputPath); } catch { }
@@ -1221,6 +1238,8 @@ public partial class MainWindow : Window
         }
         finally
         {
+            queueItem.CancellationSource?.Dispose();
+            queueItem.CancellationSource = null;
             StartDownloadButton.IsEnabled = true;
             _pendingDownloadFile = null;
             UpdateTransferQueueDisplay();
@@ -2462,33 +2481,52 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName, bool? verifyOverride = null, Action<long>? progress = null)
+    private async Task DownloadPartWithIntegrityCheckAsync(Document document, string destinationPath, string? expectedHash, int partNumber, string displayName, bool? verifyOverride = null, Action<long>? progress = null, CancellationToken cancellationToken = default)
     {
         if (_telegramClient is null) throw new InvalidOperationException("O cliente do Telegram não está disponível.");
         var verify = (verifyOverride ?? (VerifyDownloadHash.IsChecked == true)) && !string.IsNullOrWhiteSpace(expectedHash);
 
-        for (var attempt = 1; attempt <= (verify ? 2 : 1); attempt++)
+        try
         {
-            await using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            for (var attempt = 1; attempt <= (verify ? 2 : 1); attempt++)
             {
-                var downloadTask = _telegramClient.DownloadFileAsync(document, output);
-                while (!downloadTask.IsCompleted)
+                cancellationToken.ThrowIfCancellationRequested();
+                await using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
+                    var downloadTask = _telegramClient.DownloadFileAsync(document, output);
+                    while (!downloadTask.IsCompleted)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            // WTelegramClient não expõe cancelamento para DownloadFileAsync.
+                            // Aguarda a parte atual terminar antes de fechar o stream com segurança.
+                            await downloadTask;
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+                        progress?.Invoke(output.Length);
+                        await Task.WhenAny(downloadTask, Task.Delay(250));
+                    }
+                    await downloadTask;
+                    cancellationToken.ThrowIfCancellationRequested();
                     progress?.Invoke(output.Length);
-                    await Task.WhenAny(downloadTask, Task.Delay(250));
                 }
-                await downloadTask;
-                progress?.Invoke(output.Length);
-            }
-            if (!verify) return;
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!verify) return;
 
-            var actualHash = await ComputeSha256Async(destinationPath);
-            if (string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase)) return;
-            try { File.Delete(destinationPath); } catch { }
-            if (attempt == 1)
-                TelegramFilesStatus.Text = $"Hash divergente na parte {partNumber} de “{displayName}”. Baixando novamente somente essa parte...";
+                var actualHash = await ComputeSha256Async(destinationPath);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase)) return;
+                try { File.Delete(destinationPath); } catch { }
+                if (attempt == 1)
+                    TelegramFilesStatus.Text = $"Hash divergente na parte {partNumber} de “{displayName}”. Baixando novamente somente essa parte...";
+            }
+            throw new InvalidDataException($"A parte {partNumber} de “{displayName}” falhou na verificação SHA-256 após uma nova tentativa.");
         }
-        throw new InvalidDataException($"A parte {partNumber} de “{displayName}” falhou na verificação SHA-256 após uma nova tentativa.");
+        catch
+        {
+            try { if (File.Exists(destinationPath)) File.Delete(destinationPath); } catch { }
+            throw;
+        }
     }
 
     private static async Task<string> ComputeSha256Async(string path)
@@ -3717,8 +3755,21 @@ public partial class MainWindow : Window
             }
             else if (item.Status == "Em andamento")
             {
-                item.ProgressLabel = "A transferência está em andamento e não pode ser interrompida com segurança nesta versão.";
+                if (item.CancellationSource is not null)
+                {
+                    item.Status = "Cancelando";
+                    item.ProgressLabel = "Parando após a parte atual...";
+                    item.CancellationSource.Cancel();
+                }
+                else
+                {
+                    item.ProgressLabel = "Não foi possível interromper esta transferência.";
+                }
                 if (ReferenceEquals(_selectedTransfer, item)) RefreshTransferDetails(item);
+                return;
+            }
+            else if (item.Status == "Cancelando")
+            {
                 return;
             }
             TransferQueue.Remove(item);
