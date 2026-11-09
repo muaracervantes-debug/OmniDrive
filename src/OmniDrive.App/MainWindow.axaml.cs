@@ -19,6 +19,9 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using WTelegram;
 using TL;
+using PdfiumRaster;
+using LibVLCSharp.Shared;
+using LibVLCSharp.Avalonia;
 
 namespace OmniDrive.App;
 
@@ -899,13 +902,24 @@ public partial class MainWindow : Window
         var extension = Path.GetExtension(file.DisplayName).ToLowerInvariant();
         var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff" };
+        var videoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".mp4", ".m4v", ".mov", ".avi", ".mkv", ".webm", ".mpeg", ".mpg", ".wmv", ".flv", ".ogv" };
+        var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".mp3", ".wav", ".ogg", ".oga", ".m4a", ".aac", ".flac", ".wma", ".opus" };
+        var textExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".txt", ".md", ".log", ".csv", ".json", ".xml", ".yaml", ".yml", ".ini", ".config", ".html", ".htm", ".css", ".js", ".ts", ".cs", ".py", ".sql", ".sh", ".bat", ".ps1" };
         var isImage = imageExtensions.Contains(extension);
-        if (!isImage)
+        var isVideo = videoExtensions.Contains(extension);
+        var isAudio = audioExtensions.Contains(extension);
+        var isPdf = extension == ".pdf";
+        var isText = textExtensions.Contains(extension);
+        if (!isImage && !isVideo && !isAudio && !isPdf && !isText)
         {
-            TelegramFilesStatus.Text = "Este formato ainda não possui visualização interna.";
+            TelegramFilesStatus.Text = "A visualização interna deste formato ainda não está disponível.";
             return;
         }
 
+        string? previewDirectory = null;
         try
         {
             TelegramFilesStatus.Text = $"Carregando “{file.DisplayName}” para visualização...";
@@ -913,7 +927,6 @@ public partial class MainWindow : Window
             if (documents.Count == 0)
                 throw new InvalidDataException("Nenhum conteúdo foi encontrado para este arquivo.");
 
-            // Os bytes ficam em memória; não é criado arquivo de preview no disco.
             await using var content = new MemoryStream();
             var orderedParts = file.IsSplitFile
                 ? file.Parts.OrderBy(part => part.PartNumber).ToList()
@@ -933,8 +946,8 @@ public partial class MainWindow : Window
                         throw new InvalidDataException($"A verificação SHA-256 da parte {partNumber} falhou.");
                 }
                 await content.WriteAsync(partBytes);
-                if (content.Length > 80L * 1024 * 1024)
-                    throw new InvalidDataException("O arquivo excede o limite de 80 MB para visualização em memória.");
+                if (content.Length > 250L * 1024 * 1024)
+                    throw new InvalidDataException("O arquivo excede o limite de 250 MB para visualização.");
             }
 
             var bytes = content.ToArray();
@@ -952,8 +965,7 @@ public partial class MainWindow : Window
                 var bitmap = new Bitmap(imageStream);
                 var image = new Image
                 {
-                    Source = bitmap,
-                    Stretch = Avalonia.Media.Stretch.Uniform,
+                    Source = bitmap, Stretch = Avalonia.Media.Stretch.Uniform,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -967,10 +979,130 @@ public partial class MainWindow : Window
                 imageWindow.Closed += (_, _) => bitmap.Dispose();
                 imageWindow.Show(this);
             }
+            else if (isText)
+            {
+                var textBox = new TextBox
+                {
+                    Text = System.Text.Encoding.UTF8.GetString(bytes),
+                    IsReadOnly = true, AcceptsReturn = true,
+                    TextWrapping = Avalonia.Media.TextWrapping.NoWrap,
+                    FontFamily = "Consolas", FontSize = 13,
+                    Background = Avalonia.Media.Brush.Parse("#17151F"),
+                    Foreground = Avalonia.Media.Brush.Parse("#E8E6EF"),
+                    Padding = new Thickness(16)
+                };
+                new Window
+                {
+                    Title = file.DisplayName, Width = 1000, Height = 720,
+                    MinWidth = 480, MinHeight = 360,
+                    Background = Avalonia.Media.Brush.Parse("#14121B"),
+                    Content = textBox
+                }.Show(this);
+            }
+            else
+            {
+                previewDirectory = Path.Combine(Path.GetTempPath(), "OmniDrive", "Preview", Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(previewDirectory);
+                var previewPath = Path.Combine(previewDirectory, Path.GetFileName(file.DisplayName));
+                await File.WriteAllBytesAsync(previewPath, bytes);
+
+                if (isPdf)
+                {
+                    var pagesPanel = new StackPanel { Spacing = 14, HorizontalAlignment = HorizontalAlignment.Center };
+                    using (var session = PdfRenderSession.Open(previewPath))
+                    {
+                        if (session.PageCount < 1 || session.PageCount > 150)
+                            throw new InvalidDataException("O PDF precisa ter entre 1 e 150 páginas para visualização.");
+                        var options = new PdfImageConversionOptions
+                        {
+                            Format = PdfImageOutputFormat.Png,
+                            Render = PdfPageRenderOptions.ScreenPreview,
+                            Encoding = PdfImageEncodingOptions.Fast
+                        };
+                        for (var pageIndex = 0; pageIndex < session.PageCount; pageIndex++)
+                        {
+                            var pagePath = Path.Combine(previewDirectory, $"page-{pageIndex + 1:D4}.png");
+                            session.SavePage(pageIndex, pagePath, options);
+                            await using var pageStream = File.OpenRead(pagePath);
+                            var pageBitmap = new Bitmap(pageStream);
+                            pagesPanel.Children.Add(new Border
+                            {
+                                Background = Avalonia.Media.Brush.Parse("#FFFFFF"),
+                                Padding = new Thickness(8),
+                                Child = new Image { Source = pageBitmap, Stretch = Avalonia.Media.Stretch.Uniform, MaxWidth = 1000 }
+                            });
+                        }
+                    }
+                    var pdfWindow = new Window
+                    {
+                        Title = file.DisplayName, Width = 1100, Height = 800,
+                        MinWidth = 600, MinHeight = 420,
+                        Background = Avalonia.Media.Brush.Parse("#14121B"),
+                        Content = new ScrollViewer { Content = pagesPanel }
+                    };
+                    var pdfTempDirectory = previewDirectory;
+                    pdfWindow.Closed += (_, _) =>
+                    {
+                        foreach (var border in pagesPanel.Children.OfType<Border>())
+                            if (border.Child is Image pageImage && pageImage.Source is Bitmap pageBitmap)
+                                pageBitmap.Dispose();
+                        try { Directory.Delete(pdfTempDirectory, true); } catch { }
+                    };
+                    pdfWindow.Show(this);
+                    previewDirectory = null;
+                }
+                else
+                {
+                    var libVlc = new LibVLC();
+                    var mediaPlayer = new MediaPlayer(libVlc);
+                    var controls = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        Spacing = 8, Margin = new Thickness(12)
+                    };
+                    var playButton = new Button { Content = "▶ Reproduzir" };
+                    var pauseButton = new Button { Content = "⏸ Pausar" };
+                    var stopButton = new Button { Content = "■ Parar" };
+                    playButton.Click += (_, _) => mediaPlayer.Play();
+                    pauseButton.Click += (_, _) => mediaPlayer.Pause();
+                    stopButton.Click += (_, _) => mediaPlayer.Stop();
+                    controls.Children.Add(playButton);
+                    controls.Children.Add(pauseButton);
+                    controls.Children.Add(stopButton);
+                    var videoView = new VideoView { Content = controls };
+                    var mediaWindow = new Window
+                    {
+                        Title = file.DisplayName, Width = 1100, Height = 720,
+                        MinWidth = 600, MinHeight = 400,
+                        Background = Avalonia.Media.Brush.Parse("#101010"),
+                        Content = videoView
+                    };
+                    mediaWindow.Opened += (_, _) =>
+                    {
+                        videoView.MediaPlayer = mediaPlayer;
+                        using var media = new Media(libVlc, new Uri(previewPath));
+                        mediaPlayer.Play(media);
+                    };
+                    var mediaTempDirectory = previewDirectory;
+                    mediaWindow.Closed += (_, _) =>
+                    {
+                        mediaPlayer.Stop();
+                        mediaPlayer.Dispose();
+                        libVlc.Dispose();
+                        try { Directory.Delete(mediaTempDirectory, true); } catch { }
+                    };
+                    mediaWindow.Show(this);
+                    previewDirectory = null;
+                }
+            }
             TelegramFilesStatus.Text = $"“{file.DisplayName}” aberto para visualização.";
         }
         catch (Exception ex)
         {
+            if (previewDirectory is not null)
+                try { Directory.Delete(previewDirectory, true); } catch { }
             TelegramFilesStatus.Text = $"Não foi possível visualizar “{file.DisplayName}”: {ex.Message}";
         }
     }
