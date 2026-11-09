@@ -22,7 +22,44 @@ public sealed class TelegramFileItem
     public InputPeer Peer { get; }
     public DateTimeOffset MessageDate { get; }
     public bool IsFolder { get; }
-    public string Icon => IsFolder ? "📁" : "▤";
+    public string Icon => GetFileIcon(DisplayName, IsFolder);
+
+    private static string GetFileIcon(string fileName, bool isFolder)
+    {
+        if (isFolder)
+            return "📁";
+
+        var name = fileName.Trim().ToLowerInvariant();
+        var extension = System.IO.Path.GetExtension(name);
+
+        if (name.EndsWith(".tar.gz", StringComparison.Ordinal))
+            return "🗜️";
+
+        return extension switch
+        {
+            ".zip" or ".rar" or ".7z" or ".tar" or ".gz" or ".tgz"
+                or ".bz2" or ".xz" or ".lz" or ".lzma" or ".cab" or ".iso"
+                => "🗜️",
+
+            ".mp4" or ".m4v" or ".mkv" or ".mov" or ".avi" or ".wmv"
+                or ".webm" or ".mpeg" or ".mpg" or ".3gp" or ".ts"
+                => "🎬",
+
+            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp"
+                or ".tif" or ".tiff" or ".svg" or ".heic" or ".heif" or ".ico"
+                => "🖼️",
+
+            ".pdf" => "📕",
+
+            ".txt" or ".md" or ".markdown" or ".rtf" or ".csv" or ".tsv"
+                or ".log" or ".json" or ".xml" or ".yaml" or ".yml" or ".ini"
+                or ".cfg" or ".conf" or ".html" or ".htm" or ".css" or ".js"
+                or ".ts" or ".cs" or ".py" or ".java" or ".sql" or ".sh"
+                => "📝",
+
+            _ => "📦"
+        };
+    }
     public string? FolderKey { get; }
     public bool IsFavorite { get; set; }
     public bool HasSavedHash { get; }
