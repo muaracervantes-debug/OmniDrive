@@ -4155,7 +4155,7 @@ internal sealed class ArchiveBrowserWindow : Window
 
         foreach (var entry in _entries)
         {
-            var key = (entry.Key ?? "").Replace('\\\\', '/').TrimStart('/');
+            var key = (entry.Key ?? "").Replace('\\', '/').TrimStart('/');
             if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -4200,7 +4200,7 @@ internal sealed class ArchiveBrowserWindow : Window
 
         foreach (var entry in files.OrderBy(item => Path.GetFileName(item.Key), StringComparer.OrdinalIgnoreCase))
         {
-            var entryName = Path.GetFileName(entry.Key.Replace('\\\\', '/'));
+            var entryName = Path.GetFileName(entry.Key.Replace('\\', '/'));
             var button = new Button
             {
                 Content = $"📄  {entryName}    ({FormatArchiveSize(entry.Size)})",
@@ -4244,7 +4244,7 @@ internal sealed class ArchiveBrowserWindow : Window
 
         try
         {
-            var suggestedName = Path.GetFileName(_selectedEntry.Key.Replace('\\\\', '/'));
+            var suggestedName = Path.GetFileName(_selectedEntry.Key.Replace('\\', '/'));
             var destination = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Extrair arquivo",
