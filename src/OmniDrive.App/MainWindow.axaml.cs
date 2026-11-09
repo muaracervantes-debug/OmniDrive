@@ -897,20 +897,10 @@ public partial class MainWindow : Window
         }
 
         var extension = Path.GetExtension(file.DisplayName).ToLowerInvariant();
-        var mimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [".pdf"] = "application/pdf",
-            [".mp4"] = "video/mp4", [".webm"] = "video/webm", [".mov"] = "video/quicktime",
-            [".m4v"] = "video/mp4", [".ogv"] = "video/ogg",
-            [".mp3"] = "audio/mpeg", [".wav"] = "audio/wav", [".ogg"] = "audio/ogg",
-            [".oga"] = "audio/ogg", [".m4a"] = "audio/mp4", [".aac"] = "audio/aac",
-            [".flac"] = "audio/flac"
-        };
         var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff" };
         var isImage = imageExtensions.Contains(extension);
-        var isMedia = mimeTypes.TryGetValue(extension, out var mimeType);
-        if (!isImage && !isMedia)
+        if (!isImage)
         {
             TelegramFilesStatus.Text = "Este formato ainda não possui visualização interna.";
             return;
@@ -977,103 +967,12 @@ public partial class MainWindow : Window
                 imageWindow.Closed += (_, _) => bitmap.Dispose();
                 imageWindow.Show(this);
             }
-            else
-            {
-                ShowWebMediaPreview(file.DisplayName, bytes, mimeType!);
-            }
-
             TelegramFilesStatus.Text = $"“{file.DisplayName}” aberto para visualização.";
         }
         catch (Exception ex)
         {
             TelegramFilesStatus.Text = $"Não foi possível visualizar “{file.DisplayName}”: {ex.Message}";
         }
-    }
-
-    private void ShowWebMediaPreview(string fileName, byte[] bytes, string mimeType)
-    {
-        var listener = new System.Net.HttpListener();
-        var portProbe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
-        portProbe.Start();
-        var port = ((System.Net.IPEndPoint)portProbe.LocalEndpoint).Port;
-        portProbe.Stop();
-        var baseUrl = $"http://127.0.0.1:{port}/";
-        listener.Prefixes.Add(baseUrl);
-        listener.Start();
-        var shutdown = new CancellationTokenSource();
-
-        var html = mimeType == "application/pdf"
-            ? "<!doctype html><html><body style='margin:0;background:#25212d'><iframe src='/file' style='border:0;width:100vw;height:100vh'></iframe></body></html>"
-            : mimeType.StartsWith("video/", StringComparison.Ordinal)
-                ? "<!doctype html><html><body style='margin:0;background:#14121b;display:grid;place-items:center;height:100vh'><video controls autoplay style='max-width:100%;max-height:100%;width:100%'><source src='/file'></video></body></html>"
-                : "<!doctype html><html><body style='margin:0;background:#14121b;color:white;display:grid;place-items:center;height:100vh'><audio controls autoplay style='width:80%'><source src='/file'></audio></body></html>";
-
-        var viewer = new Window
-        {
-            Title = fileName, Width = 1000, Height = 720,
-            MinWidth = 480, MinHeight = 320,
-            Background = Avalonia.Media.Brush.Parse("#14121B"),
-            Content = new Avalonia.Controls.NativeWebView { Source = new Uri(baseUrl) }
-        };
-        viewer.Closed += (_, _) =>
-        {
-            shutdown.Cancel();
-            try { listener.Stop(); listener.Close(); } catch { }
-            shutdown.Dispose();
-        };
-        viewer.Show(this);
-
-        _ = Task.Run(async () =>
-        {
-            while (!shutdown.IsCancellationRequested && listener.IsListening)
-            {
-                System.Net.HttpListenerContext context;
-                try { context = await listener.GetContextAsync(); }
-                catch { break; }
-
-                try
-                {
-                    var response = context.Response;
-                    if (context.Request.Url?.AbsolutePath == "/")
-                    {
-                        var page = System.Text.Encoding.UTF8.GetBytes(html);
-                        response.ContentType = "text/html; charset=utf-8";
-                        response.ContentLength64 = page.Length;
-                        await response.OutputStream.WriteAsync(page, shutdown.Token);
-                    }
-                    else if (context.Request.Url?.AbsolutePath == "/file")
-                    {
-                        response.ContentType = mimeType;
-                        response.AddHeader("Content-Disposition", "inline");
-                        response.AddHeader("Accept-Ranges", "bytes");
-                        var range = context.Request.Headers["Range"];
-                        var offset = 0;
-                        var count = bytes.Length;
-                        if (!string.IsNullOrWhiteSpace(range) && range.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var pieces = range[6..].Split('-', 2);
-                            if (int.TryParse(pieces[0], out var requestedStart) && requestedStart >= 0 && requestedStart < bytes.Length)
-                            {
-                                offset = requestedStart;
-                                if (pieces.Length > 1 && int.TryParse(pieces[1], out var requestedEnd))
-                                    count = Math.Clamp(requestedEnd - offset + 1, 0, bytes.Length - offset);
-                                else count = bytes.Length - offset;
-                                response.StatusCode = 206;
-                                response.AddHeader("Content-Range", $"bytes {offset}-{offset + count - 1}/{bytes.Length}");
-                            }
-                        }
-                        response.ContentLength64 = count;
-                        await response.OutputStream.WriteAsync(bytes.AsMemory(offset, count), shutdown.Token);
-                    }
-                    else response.StatusCode = 404;
-                    response.Close();
-                }
-                catch
-                {
-                    try { context.Response.Abort(); } catch { }
-                }
-            }
-        }, shutdown.Token);
     }
 
     private void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
