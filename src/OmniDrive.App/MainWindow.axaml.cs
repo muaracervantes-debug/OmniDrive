@@ -22,6 +22,7 @@ using TL;
 using PdfiumRaster;
 using LibVLCSharp.Shared;
 using LibVLCSharp.Avalonia;
+using SharpCompress.Archives;
 
 namespace OmniDrive.App;
 
@@ -913,7 +914,10 @@ public partial class MainWindow : Window
         var isAudio = audioExtensions.Contains(extension);
         var isPdf = extension == ".pdf";
         var isText = textExtensions.Contains(extension);
-        if (!isImage && !isVideo && !isAudio && !isPdf && !isText)
+        var archiveExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz" };
+        var isArchive = archiveExtensions.Contains(extension) || file.DisplayName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase);
+        if (!isImage && !isVideo && !isAudio && !isPdf && !isText && !isArchive)
         {
             TelegramFilesStatus.Text = "A visualização interna deste formato ainda não está disponível.";
             return;
@@ -959,7 +963,24 @@ public partial class MainWindow : Window
                     throw new InvalidDataException("A verificação SHA-256 do arquivo falhou.");
             }
 
-            if (isImage)
+            if (isArchive)
+            {
+                var archiveStream = new MemoryStream(bytes, writable: false);
+                try
+                {
+                    var archive = ArchiveFactory.OpenArchive(archiveStream);
+                    var archiveWindow = new ArchiveBrowserWindow(archive, archiveStream, file.DisplayName);
+                    archiveWindow.Show(this);
+                    TelegramFilesStatus.Text = $"Conteúdo de “{file.DisplayName}” carregado.";
+                }
+                catch
+                {
+                    archiveStream.Dispose();
+                    throw;
+                }
+                return;
+            }
+            else if (isImage)
             {
                 await using var imageStream = new MemoryStream(bytes, writable: false);
                 var bitmap = new Bitmap(imageStream);
@@ -4053,4 +4074,208 @@ public partial class MainWindow : Window
         public bool CanExecute(object? parameter) => true;
         public void Execute(object? parameter) => action();
     }
+
+internal sealed class ArchiveBrowserWindow : Window
+{
+    private readonly SharpCompress.Archives.IArchive _archive;
+    private readonly Stream _archiveStream;
+    private readonly StackPanel _entriesPanel = new() { Spacing = 6 };
+    private readonly TextBlock _pathLabel = new() { VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+    private readonly TextBlock _status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    private readonly Button _backButton = new() { Content = "← Voltar", IsEnabled = false };
+    private readonly Button _extractButton = new() { Content = "Extrair selecionado", IsEnabled = false };
+    private readonly List<SharpCompress.Archives.IArchiveEntry> _entries;
+    private SharpCompress.Archives.IArchiveEntry? _selectedEntry;
+    private string _currentPath = "";
+
+    public ArchiveBrowserWindow(SharpCompress.Archives.IArchive archive, Stream archiveStream, string archiveName)
+    {
+        _archive = archive;
+        _archiveStream = archiveStream;
+        _entries = archive.Entries.ToList();
+        Title = $"Arquivo compactado — {archiveName}";
+        Width = 850;
+        Height = 620;
+        MinWidth = 560;
+        MinHeight = 400;
+        Background = Avalonia.Media.Brush.Parse("#14121B");
+
+        _backButton.Click += (_, _) => NavigateBack();
+        _extractButton.Click += async (_, _) => await ExtractSelectedAsync();
+
+        var header = new StackPanel { Spacing = 8, Margin = new Thickness(16) };
+        header.Children.Add(new TextBlock
+        {
+            Text = archiveName,
+            FontSize = 18,
+            FontWeight = Avalonia.Media.FontWeight.SemiBold,
+            Foreground = Avalonia.Media.Brush.Parse("#F0EAF7")
+        });
+        var navigation = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10 };
+        navigation.Children.Add(_backButton);
+        navigation.Children.Add(_pathLabel);
+        header.Children.Add(navigation);
+
+        var footer = new StackPanel { Spacing = 8, Margin = new Thickness(16) };
+        footer.Children.Add(_status);
+        footer.Children.Add(_extractButton);
+
+        var root = new DockPanel();
+        DockPanel.SetDock(header, Dock.Top);
+        DockPanel.SetDock(footer, Dock.Bottom);
+        root.Children.Add(header);
+        root.Children.Add(footer);
+        root.Children.Add(new ScrollViewer
+        {
+            Content = _entriesPanel,
+            Margin = new Thickness(16, 0, 16, 8),
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        });
+        Content = root;
+        Closed += (_, _) =>
+        {
+            _archive.Dispose();
+            _archiveStream.Dispose();
+        };
+        RefreshEntries();
+    }
+
+    private void RefreshEntries()
+    {
+        _entriesPanel.Children.Clear();
+        _selectedEntry = null;
+        _extractButton.IsEnabled = false;
+        _backButton.IsEnabled = _currentPath.Length > 0;
+        _pathLabel.Text = _currentPath.Length == 0 ? "Pasta principal" : _currentPath;
+        _status.Text = "Abra uma pasta para navegar ou selecione um arquivo e clique em “Extrair selecionado”.";
+
+        var prefix = _currentPath.Length == 0 ? "" : _currentPath + "/";
+        var directories = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        var files = new List<SharpCompress.Archives.IArchiveEntry>();
+
+        foreach (var entry in _entries)
+        {
+            var key = (entry.Key ?? "").Replace('\\\\', '/').TrimStart('/');
+            if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var remainder = key[prefix.Length..];
+            if (remainder.Length == 0)
+                continue;
+
+            var separator = remainder.IndexOf('/');
+            if (separator >= 0)
+            {
+                directories.Add(remainder[..separator]);
+            }
+            else if (entry.IsDirectory)
+            {
+                directories.Add(remainder.TrimEnd('/'));
+            }
+            else
+            {
+                files.Add(entry);
+            }
+        }
+
+        foreach (var directory in directories)
+        {
+            var folderPath = prefix + directory;
+            var button = new Button
+            {
+                Content = $"📁  {directory}",
+                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                Padding = new Thickness(12, 9),
+                Background = Avalonia.Media.Brush.Parse("#292431"),
+                Foreground = Avalonia.Media.Brush.Parse("#E8DDF2")
+            };
+            button.Click += (_, _) =>
+            {
+                _currentPath = folderPath;
+                RefreshEntries();
+            };
+            _entriesPanel.Children.Add(button);
+        }
+
+        foreach (var entry in files.OrderBy(item => Path.GetFileName(item.Key), StringComparer.OrdinalIgnoreCase))
+        {
+            var entryName = Path.GetFileName(entry.Key.Replace('\\\\', '/'));
+            var button = new Button
+            {
+                Content = $"📄  {entryName}    ({FormatArchiveSize(entry.Size)})",
+                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                Padding = new Thickness(12, 9),
+                Background = Avalonia.Media.Brush.Parse("#211E2A"),
+                Foreground = Avalonia.Media.Brush.Parse("#E8E6EF")
+            };
+            button.Click += (_, _) =>
+            {
+                _selectedEntry = entry;
+                _extractButton.IsEnabled = true;
+                _status.Text = $"Selecionado: {entryName} ({FormatArchiveSize(entry.Size)}).";
+            };
+            _entriesPanel.Children.Add(button);
+        }
+
+        if (_entriesPanel.Children.Count == 0)
+        {
+            _entriesPanel.Children.Add(new TextBlock
+            {
+                Text = "Esta pasta está vazia.",
+                Margin = new Thickness(8),
+                Foreground = Avalonia.Media.Brush.Parse("#A9A2B4")
+            });
+        }
+    }
+
+    private void NavigateBack()
+    {
+        var separator = _currentPath.LastIndexOf('/');
+        _currentPath = separator < 0 ? "" : _currentPath[..separator];
+        RefreshEntries();
+    }
+
+    private async Task ExtractSelectedAsync()
+    {
+        if (_selectedEntry is null)
+            return;
+
+        try
+        {
+            var suggestedName = Path.GetFileName(_selectedEntry.Key.Replace('\\\\', '/'));
+            var destination = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Extrair arquivo",
+                SuggestedFileName = suggestedName
+            });
+            if (destination is null)
+                return;
+
+            await using var source = _selectedEntry.OpenEntryStream();
+            await using var target = await destination.OpenWriteAsync();
+            await source.CopyToAsync(target);
+            _status.Text = $"Arquivo extraído: {suggestedName}";
+        }
+        catch (Exception ex)
+        {
+            _status.Text = $"Não foi possível extrair o arquivo: {ex.Message}";
+        }
+    }
+
+    private static string FormatArchiveSize(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:0.##} {units[unit]}";
+    }
+}
+
 }
