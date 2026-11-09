@@ -856,29 +856,16 @@ public partial class MainWindow : Window
         return $"{size:0.##} {units[unit]}";
     }
 
-    private void CloudFileRow_PointerEntered(object? sender, PointerEventArgs e)
+    private void CloudFileRow_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Border row)
+        if (sender is not Border row
+            || row.DataContext is not TelegramFileItem file
+            || !e.GetCurrentPoint(row).Properties.IsRightButtonPressed)
             return;
 
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
-        {
-            var item = (TelegramFileItem)button.Tag!;
-            button.IsVisible = button.Content?.ToString() != "⇩" || !item.IsFolder;
-        }
-    }
-
-    private void CloudFileRow_PointerExited(object? sender, PointerEventArgs e)
-    {
-        if (sender is not Border row)
-            return;
-
-        var isSelected = ReferenceEquals(CloudFilesList.SelectedItem, row.DataContext);
-        foreach (var button in row.GetVisualDescendants().OfType<Button>().Where(button => button.Tag is TelegramFileItem))
-        {
-            var item = (TelegramFileItem)button.Tag!;
-            button.IsVisible = isSelected && (button.Content?.ToString() != "⇩" || !item.IsFolder);
-        }
+        CloudFilesList.SelectedItem = file;
+        ShowTelegramFileOptions(file, row);
+        e.Handled = true;
     }
 
     private async void CloudFilesList_DoubleTapped(object? sender, TappedEventArgs e)
@@ -892,7 +879,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowTelegramFileOptions(file);
     }
 
     private void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
@@ -1246,12 +1232,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void TelegramFileOptions_Click(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: TelegramFileItem file })
-            ShowTelegramFileOptions(file);
-    }
-
     private void SelectAllCheckBox_Changed(object? sender, RoutedEventArgs e)
     {
         if (SelectAllCheckBox.IsChecked == true)
@@ -1265,7 +1245,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowTelegramFileOptions(TelegramFileItem file)
+    private void ShowTelegramFileOptions(TelegramFileItem file, Control? placementTarget = null)
     {
         var menu = new ContextMenu();
         if (file.IsFolder)
@@ -1285,7 +1265,7 @@ public partial class MainWindow : Window
                 Header = "Excluir",
                 Command = new RelayUiCommand(() => _ = DeleteTelegramFolderAsync(file))
             });
-            menu.Open(CloudFilesList);
+            menu.Open(placementTarget ?? CloudFilesList);
             return;
         }
 
