@@ -879,6 +879,75 @@ public partial class MainWindow : Window
             return;
         }
 
+        await OpenTelegramFileAsync(file);
+    }
+
+    private async Task OpenTelegramFileAsync(TelegramFileItem file)
+    {
+        if (_telegramClient is null)
+        {
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de abrir arquivos.";
+            return;
+        }
+
+        var extension = Path.GetExtension(file.DisplayName);
+        if (string.IsNullOrWhiteSpace(extension))
+            extension = ".bin";
+
+        var previewDirectory = Path.Combine(Path.GetTempPath(), "OmniDrive", "Preview");
+        Directory.CreateDirectory(previewDirectory);
+        var previewPath = Path.Combine(previewDirectory, $"{Guid.NewGuid():N}{extension}");
+        var temporaryParts = new List<string>();
+
+        try
+        {
+            TelegramFilesStatus.Text = $"Baixando “{file.DisplayName}” para visualização...";
+            var documents = await GetTelegramDocumentsForFileAsync(file);
+            var orderedParts = file.IsSplitFile
+                ? file.Parts.OrderBy(part => part.PartNumber).ToList()
+                : new List<TelegramFilePart>();
+
+            await using (var output = new FileStream(previewPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                for (var index = 0; index < documents.Count; index++)
+                {
+                    var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
+                    var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
+                    var partPath = Path.Combine(previewDirectory, $"{Guid.NewGuid():N}.part");
+                    temporaryParts.Add(partPath);
+                    await DownloadPartWithIntegrityCheckAsync(
+                        documents[index], partPath, expectedHash, partNumber, file.DisplayName,
+                        progress: null);
+                    await using var partStream = File.OpenRead(partPath);
+                    await partStream.CopyToAsync(output);
+                }
+            }
+
+            var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
+            if (!string.IsNullOrWhiteSpace(expectedWholeHash))
+            {
+                var actualHash = await ComputeSha256Async(previewPath);
+                if (!string.Equals(actualHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("A verificação SHA-256 do arquivo falhou. O arquivo não será aberto.");
+            }
+
+            foreach (var part in temporaryParts)
+                try { if (File.Exists(part)) File.Delete(part); } catch { }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = previewPath,
+                UseShellExecute = true
+            });
+            TelegramFilesStatus.Text = $"“{file.DisplayName}” aberto no aplicativo padrão.";
+        }
+        catch (Exception ex)
+        {
+            try { if (File.Exists(previewPath)) File.Delete(previewPath); } catch { }
+            foreach (var part in temporaryParts)
+                try { if (File.Exists(part)) File.Delete(part); } catch { }
+            TelegramFilesStatus.Text = $"Não foi possível abrir “{file.DisplayName}”: {ex.Message}";
+        }
     }
 
     private void DownloadTelegramFile_Click(object? sender, RoutedEventArgs e)
