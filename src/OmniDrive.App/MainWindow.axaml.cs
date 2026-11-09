@@ -13,6 +13,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -886,67 +887,99 @@ public partial class MainWindow : Window
     {
         if (_telegramClient is null)
         {
-            TelegramFilesStatus.Text = "Conecte o Telegram antes de abrir arquivos.";
+            TelegramFilesStatus.Text = "Conecte o Telegram antes de visualizar arquivos.";
             return;
         }
 
-        var extension = Path.GetExtension(file.DisplayName);
-        if (string.IsNullOrWhiteSpace(extension))
-            extension = ".bin";
+        var extension = Path.GetExtension(file.DisplayName).ToLowerInvariant();
+        var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff" };
 
-        var previewDirectory = Path.Combine(Path.GetTempPath(), "OmniDrive", "Preview");
-        Directory.CreateDirectory(previewDirectory);
-        var previewPath = Path.Combine(previewDirectory, $"{Guid.NewGuid():N}{extension}");
-        var temporaryParts = new List<string>();
+        if (!imageExtensions.Contains(extension))
+        {
+            TelegramFilesStatus.Text = "A visualização interna está sendo preparada. Nesta versão, imagens são suportadas; outros formatos ainda não.";
+            return;
+        }
+
+        if (file.IsIncomplete)
+        {
+            TelegramFilesStatus.Text = "Este arquivo está incompleto e não pode ser visualizado.";
+            return;
+        }
 
         try
         {
-            TelegramFilesStatus.Text = $"Baixando “{file.DisplayName}” para visualização...";
+            TelegramFilesStatus.Text = $"Carregando imagem “{file.DisplayName}”...";
             var documents = await GetTelegramDocumentsForFileAsync(file);
+            if (documents.Count == 0)
+                throw new InvalidDataException("Nenhum conteúdo foi encontrado para este arquivo.");
+
+            // O conteúdo é recebido em memória. Nenhum arquivo de preview é criado no disco.
+            await using var imageData = new MemoryStream();
             var orderedParts = file.IsSplitFile
                 ? file.Parts.OrderBy(part => part.PartNumber).ToList()
                 : new List<TelegramFilePart>();
 
-            await using (var output = new FileStream(previewPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            for (var index = 0; index < documents.Count; index++)
             {
-                for (var index = 0; index < documents.Count; index++)
+                var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
+                var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
+                await using var partData = new MemoryStream();
+                await _telegramClient.DownloadFileAsync(documents[index], partData);
+                var bytes = partData.ToArray();
+
+                if (!string.IsNullOrWhiteSpace(expectedHash))
                 {
-                    var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
-                    var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
-                    var partPath = Path.Combine(previewDirectory, $"{Guid.NewGuid():N}.part");
-                    temporaryParts.Add(partPath);
-                    await DownloadPartWithIntegrityCheckAsync(
-                        documents[index], partPath, expectedHash, partNumber, file.DisplayName,
-                        progress: null);
-                    await using var partStream = File.OpenRead(partPath);
-                    await partStream.CopyToAsync(output);
+                    var actualPartHash = Convert.ToHexString(SHA256.HashData(bytes));
+                    if (!string.Equals(actualPartHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException($"A verificação SHA-256 da parte {partNumber} falhou.");
                 }
+
+                await imageData.WriteAsync(bytes);
+                if (imageData.Length > 80L * 1024 * 1024)
+                    throw new InvalidDataException("A imagem excede o limite de 80 MB para visualização em memória.");
             }
 
+            var allBytes = imageData.ToArray();
             var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
             if (!string.IsNullOrWhiteSpace(expectedWholeHash))
             {
-                var actualHash = await ComputeSha256Async(previewPath);
+                var actualHash = Convert.ToHexString(SHA256.HashData(allBytes));
                 if (!string.Equals(actualHash, expectedWholeHash, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("A verificação SHA-256 do arquivo falhou. O arquivo não será aberto.");
+                    throw new InvalidDataException("A verificação SHA-256 do arquivo falhou.");
             }
 
-            foreach (var part in temporaryParts)
-                try { if (File.Exists(part)) File.Delete(part); } catch { }
-
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            await using var bitmapStream = new MemoryStream(allBytes, writable: false);
+            var bitmap = new Bitmap(bitmapStream);
+            var image = new Image
             {
-                FileName = previewPath,
-                UseShellExecute = true
-            });
-            TelegramFilesStatus.Text = $"“{file.DisplayName}” aberto no aplicativo padrão.";
+                Source = bitmap,
+                Stretch = Avalonia.Media.Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var viewer = new Window
+            {
+                Title = file.DisplayName,
+                Width = 1000,
+                Height = 720,
+                MinWidth = 480,
+                MinHeight = 360,
+                Background = Avalonia.Media.Brush.Parse("#14121B"),
+                Content = new ScrollViewer
+                {
+                    Content = image,
+                    HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+                }
+            };
+            viewer.Closed += (_, _) => bitmap.Dispose();
+            viewer.Show(this);
+            TelegramFilesStatus.Text = $"“{file.DisplayName}” aberto para visualização.";
         }
         catch (Exception ex)
         {
-            try { if (File.Exists(previewPath)) File.Delete(previewPath); } catch { }
-            foreach (var part in temporaryParts)
-                try { if (File.Exists(part)) File.Delete(part); } catch { }
-            TelegramFilesStatus.Text = $"Não foi possível abrir “{file.DisplayName}”: {ex.Message}";
+            TelegramFilesStatus.Text = $"Não foi possível visualizar “{file.DisplayName}”: {ex.Message}";
         }
     }
 
