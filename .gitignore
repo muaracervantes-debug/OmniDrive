@@ -1,0 +1,25 @@
+# Build output
+**/bin/
+**/obj/
+.artifacts/
+
+# IDE
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# Local secrets and Telegram session files
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+tdata/
+secrets/
+.local/
+
+# Test output
+TestResults/
+coverage/
