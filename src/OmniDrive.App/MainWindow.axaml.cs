@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private SharpCompress.Archives.IArchive? _activeArchive;
     private MemoryStream? _activeArchiveStream;
     private TelegramFileItem? _archiveSourceFile;
+    private List<TelegramFileItem> _archiveBaseFiles = new();
     private readonly List<string> _archivePath = new();
     private readonly List<UploadEntry> _pendingUploads = new();
     private List<UploadDestination> _uploadDestinations = new() { new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self") };
@@ -1051,6 +1052,8 @@ public partial class MainWindow : Window
 
             if (isArchive)
             {
+                if (_activeArchive is null)
+                    _archiveBaseFiles = _loadedCloudFiles.ToList();
                 if (_activeArchive is not null)
                 {
                     _activeArchive.Dispose();
@@ -3013,6 +3016,7 @@ public partial class MainWindow : Window
                 _activeArchiveStream?.Dispose();
                 _activeArchiveStream = null;
                 _archiveSourceFile = null;
+                _loadedCloudFiles = _archiveBaseFiles.ToList();
                 CloudFiles.Clear();
                 foreach (var item in _loadedCloudFiles)
                     CloudFiles.Add(item);
