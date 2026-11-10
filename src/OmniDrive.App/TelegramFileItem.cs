@@ -22,6 +22,9 @@ public sealed class TelegramFileItem
     public InputPeer Peer { get; }
     public DateTimeOffset MessageDate { get; }
     public bool IsFolder { get; }
+    public bool IsArchiveEntry { get; }
+    public bool IsArchiveDirectory { get; }
+    public string? ArchiveEntryKey { get; }
     public string Icon => GetFileIcon(DisplayName, IsFolder);
 
     private static string GetFileIcon(string fileName, bool isFolder)
@@ -66,7 +69,7 @@ public sealed class TelegramFileItem
     public string? SavedHash { get; }
     public string? ExpectedWholeFileHash { get; }
 
-    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null, IReadOnlyList<TelegramFilePart>? parts = null, string? splitUuid = null, int expectedPartCount = 1, bool isIncomplete = false, string? displayName = null, string? partsLabel = null, bool isFavorite = false, bool hasSavedHash = false, string? savedHash = null, string? expectedWholeFileHash = null)
+    public TelegramFileItem(string name, string chatName, string sizeLabel, string dateLabel, long sizeBytes, int messageId, InputPeer peer, bool isFolder = false, string? folderKey = null, IReadOnlyList<TelegramFilePart>? parts = null, string? splitUuid = null, int expectedPartCount = 1, bool isIncomplete = false, string? displayName = null, string? partsLabel = null, bool isFavorite = false, bool hasSavedHash = false, string? savedHash = null, string? expectedWholeFileHash = null, string? archiveEntryKey = null, bool isArchiveEntry = false, bool isArchiveDirectory = false)
     {
         Name = name;
         DisplayName = displayName ?? name;
@@ -83,6 +86,9 @@ public sealed class TelegramFileItem
         MessageId = messageId;
         Peer = peer;
         IsFolder = isFolder;
+        ArchiveEntryKey = archiveEntryKey;
+        IsArchiveEntry = isArchiveEntry;
+        IsArchiveDirectory = isArchiveDirectory;
         FolderKey = folderKey;
         IsFavorite = isFavorite;
         SavedHash = savedHash;
