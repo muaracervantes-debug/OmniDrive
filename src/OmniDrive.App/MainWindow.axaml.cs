@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private const string TelegramFolderMarker = "_OD[Pasta]";
     private Client? _telegramClient;
     private bool _hasSavedTelegramCredentials;
+    private bool _telegramAutoConnectScheduled;
     private bool _editingTelegramCredential;
     private string? _telegramPendingKind;
     private bool _telegramResendRequested;
@@ -3756,8 +3757,22 @@ public partial class MainWindow : Window
     private void ContinueStartupAfterUnlock()
     {
         _appLocked = false;
-        if (_hasSavedTelegramCredentials)
+
+        // Deixe a janela aparecer antes de iniciar a conexão de rede com o Telegram.
+        // A conexão e a sincronização continuam automáticas, mas não atrasam a abertura visual.
+        if (!_hasSavedTelegramCredentials || _telegramAutoConnectScheduled)
+            return;
+
+        _telegramAutoConnectScheduled = true;
+        TelegramStatus.Text = "OmniDrive aberto. Preparando conexão automática com o Telegram...";
+        Dispatcher.UIThread.Post(async () =>
+        {
+            await Task.Delay(700);
+            if (!IsVisible || _appLocked)
+                return;
+
             TelegramConnect_Click(this, new RoutedEventArgs());
+        }, DispatcherPriority.Background);
     }
 
     private void ManageAppPassword_Click(object? sender, RoutedEventArgs e)
