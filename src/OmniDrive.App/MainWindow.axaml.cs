@@ -39,6 +39,10 @@ public partial class MainWindow : Window
     private string _appPasswordDialogMode = "manage";
     private readonly List<TelegramFolderLocation> _folderPath = new();
     private List<TelegramFileItem> _loadedCloudFiles = new();
+    private SharpCompress.Archives.IArchive? _activeArchive;
+    private MemoryStream? _activeArchiveStream;
+    private TelegramFileItem? _archiveSourceFile;
+    private readonly List<string> _archivePath = new();
     private readonly List<UploadEntry> _pendingUploads = new();
     private List<UploadDestination> _uploadDestinations = new() { new UploadDestination("Mensagens salvas", new InputPeerSelf(), "self") };
     private bool _uploadIsFolder;
@@ -91,7 +95,7 @@ public partial class MainWindow : Window
         };
         RefreshConnectionControls();
         UpdateIntegrityWarnings();
-        Closed += (_, _) => _telegramClient?.Dispose();
+        Closed += (_, _) => { _telegramClient?.Dispose(); _activeArchive?.Dispose(); _activeArchiveStream?.Dispose(); };
     }
 
     private void InitializeComponent()
@@ -618,6 +622,66 @@ public partial class MainWindow : Window
         }
     }
 
+    private static string NormalizeArchiveKey(string? key) =>
+        (key ?? string.Empty).Replace('\\', '/').TrimStart('/');
+
+    private void RefreshArchiveFolder()
+    {
+        if (_activeArchive is null)
+            return;
+
+        var prefix = _archivePath.Count == 0 ? string.Empty : string.Join("/", _archivePath) + "/";
+        var directories = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        var files = new List<SharpCompress.Archives.IArchiveEntry>();
+
+        foreach (var entry in _activeArchive.Entries)
+        {
+            var key = NormalizeArchiveKey(entry.Key);
+            if (!key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var remainder = key[prefix.Length..];
+            if (remainder.Length == 0)
+                continue;
+
+            var slash = remainder.IndexOf('/');
+            if (slash >= 0)
+                directories.Add(remainder[..slash]);
+            else if (entry.IsDirectory)
+                directories.Add(remainder.TrimEnd('/'));
+            else
+                files.Add(entry);
+        }
+
+        CloudFiles.Clear();
+        var source = _archiveSourceFile;
+        if (source is not null)
+        {
+            foreach (var directory in directories)
+            {
+                var key = prefix + directory;
+                CloudFiles.Add(new TelegramFileItem(directory, "Pasta dentro de " + source.DisplayName,
+                    "—", source.DateLabel, 0, source.MessageId, source.Peer,
+                    isFolder: true, archiveEntryKey: key, isArchiveEntry: true, isArchiveDirectory: true));
+            }
+            foreach (var entry in files.OrderBy(item => Path.GetFileName(NormalizeArchiveKey(item.Key)), StringComparer.OrdinalIgnoreCase))
+            {
+                var key = NormalizeArchiveKey(entry.Key);
+                var name = Path.GetFileName(key);
+                CloudFiles.Add(new TelegramFileItem(name, "Dentro de " + source.DisplayName,
+                    FormatFileSize(entry.Size), source.DateLabel, entry.Size, source.MessageId, source.Peer,
+                    archiveEntryKey: key, isArchiveEntry: true));
+            }
+        }
+
+        _loadedCloudFiles = CloudFiles.ToList();
+        EmptyFilesState.IsVisible = CloudFiles.Count == 0;
+        CloudFilesContainer.IsVisible = CloudFiles.Count > 0;
+        FilesEmptyTitle.Text = "Esta pasta está vazia";
+        FilesEmptyDescription.Text = "Não há arquivos ou subpastas neste local do arquivo compactado.";
+        TelegramFilesStatus.Text = CloudFiles.Count == 0 ? "Esta pasta está vazia." : $"{CloudFiles.Count} item(ns) no arquivo compactado.";
+        UpdateBreadcrumb();
+    }
+
     private static readonly Regex TelegramHashMarkerRegex = new(
         @"SHA-256_OD\[(?<hash>[0-9a-fA-F]{64})\]",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -882,7 +946,15 @@ public partial class MainWindow : Window
 
         if (file.IsFolder)
         {
-            NavigateToFolder(file);
+            if (file.IsArchiveEntry && file.IsArchiveDirectory)
+            {
+                _archivePath.Add(file.DisplayName);
+                RefreshArchiveFolder();
+            }
+            else
+            {
+                NavigateToFolder(file);
+            }
             return;
         }
 
@@ -891,7 +963,7 @@ public partial class MainWindow : Window
 
     private async Task OpenTelegramFileAsync(TelegramFileItem file)
     {
-        if (_telegramClient is null)
+        if (_telegramClient is null && !file.IsArchiveEntry)
         {
             TelegramFilesStatus.Text = "Conecte o Telegram antes de visualizar arquivos.";
             return;
@@ -929,32 +1001,44 @@ public partial class MainWindow : Window
         try
         {
             TelegramFilesStatus.Text = $"Carregando “{file.DisplayName}” para visualização...";
-            var documents = await GetTelegramDocumentsForFileAsync(file);
-            if (documents.Count == 0)
-                throw new InvalidDataException("Nenhum conteúdo foi encontrado para este arquivo.");
-
             await using var content = new MemoryStream();
-            var orderedParts = file.IsSplitFile
-                ? file.Parts.OrderBy(part => part.PartNumber).ToList()
-                : new List<TelegramFilePart>();
-
-            for (var index = 0; index < documents.Count; index++)
+            if (file.IsArchiveEntry)
             {
-                var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
-                var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
-                await using var partStream = new MemoryStream();
-                await _telegramClient.DownloadFileAsync(documents[index], partStream);
-                var partBytes = partStream.ToArray();
-                if (!string.IsNullOrWhiteSpace(expectedHash))
-                {
-                    var partHash = Convert.ToHexString(SHA256.HashData(partBytes));
-                    if (!string.Equals(partHash, expectedHash, StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException($"A verificação SHA-256 da parte {partNumber} falhou.");
-                }
-                await content.WriteAsync(partBytes);
-                if (content.Length > 250L * 1024 * 1024)
-                    throw new InvalidDataException("O arquivo excede o limite de 250 MB para visualização.");
+                var entry = _activeArchive?.Entries.FirstOrDefault(item =>
+                    string.Equals(NormalizeArchiveKey(item.Key), file.ArchiveEntryKey, StringComparison.Ordinal));
+                if (entry is null || entry.IsDirectory)
+                    throw new InvalidDataException("O arquivo interno não está mais disponível.");
+                await using var entryStream = entry.OpenEntryStream();
+                await entryStream.CopyToAsync(content);
             }
+            else
+            {
+                var documents = await GetTelegramDocumentsForFileAsync(file);
+                if (documents.Count == 0)
+                    throw new InvalidDataException("Nenhum conteúdo foi encontrado para este arquivo.");
+
+                var orderedParts = file.IsSplitFile
+                    ? file.Parts.OrderBy(part => part.PartNumber).ToList()
+                    : new List<TelegramFilePart>();
+
+                for (var index = 0; index < documents.Count; index++)
+                {
+                    var partNumber = file.IsSplitFile ? orderedParts[index].PartNumber : 1;
+                    var expectedHash = file.IsSplitFile ? orderedParts[index].SavedHash : file.SavedHash;
+                    await using var partStream = new MemoryStream();
+                    await _telegramClient!.DownloadFileAsync(documents[index], partStream);
+                    var partBytes = partStream.ToArray();
+                    if (!string.IsNullOrWhiteSpace(expectedHash))
+                    {
+                        var partHash = Convert.ToHexString(SHA256.HashData(partBytes));
+                        if (!string.Equals(partHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidDataException($"A verificação SHA-256 da parte {partNumber} falhou.");
+                    }
+                    await content.WriteAsync(partBytes);
+                }
+            }
+            if (content.Length > 250L * 1024 * 1024)
+                throw new InvalidDataException("O arquivo excede o limite de 250 MB para visualização.");
 
             var bytes = content.ToArray();
             var expectedWholeHash = file.IsSplitFile ? file.ExpectedWholeFileHash : file.SavedHash;
@@ -967,17 +1051,26 @@ public partial class MainWindow : Window
 
             if (isArchive)
             {
-                var archiveStream = new MemoryStream(bytes, writable: false);
+                if (_activeArchive is not null)
+                {
+                    _activeArchive.Dispose();
+                    _activeArchiveStream?.Dispose();
+                }
+                _activeArchiveStream = new MemoryStream(bytes, writable: false);
                 try
                 {
-                    var archive = ArchiveFactory.OpenArchive(archiveStream);
-                    var archiveWindow = new ArchiveBrowserWindow(archive, archiveStream, file.DisplayName);
-                    archiveWindow.Show(this);
-                    TelegramFilesStatus.Text = $"Conteúdo de “{file.DisplayName}” carregado.";
+                    _activeArchive = ArchiveFactory.OpenArchive(_activeArchiveStream);
+                    _archiveSourceFile = file;
+                    _archivePath.Clear();
+                    RefreshArchiveFolder();
+                    TelegramFilesStatus.Text = $"Conteúdo de “{file.DisplayName}” aberto no Drive.";
                 }
                 catch
                 {
-                    archiveStream.Dispose();
+                    _activeArchive?.Dispose();
+                    _activeArchive = null;
+                    _activeArchiveStream.Dispose();
+                    _activeArchiveStream = null;
                     throw;
                 }
                 return;
@@ -2894,12 +2987,41 @@ public partial class MainWindow : Window
 
     private void BreadcrumbCurrent_Click(object? sender, RoutedEventArgs e)
     {
+        if (_activeArchive is not null)
+        {
+            _archivePath.Clear();
+            RefreshArchiveFolder();
+            return;
+        }
         if (_folderPath.Count == 0)
             StatusText.Text = $"Você está em {BreadcrumbCurrent.Content}.";
     }
 
     private async void BreadcrumbPrevious_Click(object? sender, RoutedEventArgs e)
     {
+        if (_activeArchive is not null)
+        {
+            if (_archivePath.Count > 0)
+            {
+                _archivePath.RemoveAt(_archivePath.Count - 1);
+                RefreshArchiveFolder();
+            }
+            else
+            {
+                _activeArchive.Dispose();
+                _activeArchive = null;
+                _activeArchiveStream?.Dispose();
+                _activeArchiveStream = null;
+                _archiveSourceFile = null;
+                CloudFiles.Clear();
+                foreach (var item in _loadedCloudFiles)
+                    CloudFiles.Add(item);
+                ApplyCurrentFilters();
+                UpdateBreadcrumb();
+            }
+            return;
+        }
+
         if (_folderPath.Count > 0)
         {
             _folderPath.RemoveAt(_folderPath.Count - 1);
@@ -2910,6 +3032,17 @@ public partial class MainWindow : Window
 
     private void UpdateBreadcrumb()
     {
+        if (_activeArchive is not null)
+        {
+            BreadcrumbCurrent.Content = _archivePath.LastOrDefault() ?? _archiveSourceFile?.DisplayName ?? "Arquivo compactado";
+            BreadcrumbPrevious.Content = _archivePath.Count > 1
+                ? _archivePath[^2]
+                : _archiveSourceFile?.DisplayName ?? "Arquivo compactado";
+            BreadcrumbPrevious.IsVisible = true;
+            BreadcrumbSeparator.IsVisible = true;
+            return;
+        }
+
         var current = _folderPath.LastOrDefault();
         BreadcrumbCurrent.Content = current?.Name ?? "Drive na nuvem";
         BreadcrumbPrevious.Content = _folderPath.Count > 1
