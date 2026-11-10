@@ -33,6 +33,17 @@ jobs:
         run: dotnet test OmniDrive.slnx -c Release --no-restore
       - name: Publish self-contained Windows executable
         run: dotnet publish src/OmniDrive.App/OmniDrive.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o artifacts/OmniDrive-win-x64
+      - name: Remove non-runtime and unused architecture files
+        shell: pwsh
+        run: |
+          $publishDir = "artifacts/OmniDrive-win-x64"
+          Get-ChildItem $publishDir -Recurse -File -Include *.pdb,*.lib | Remove-Item -Force
+          @("libvlc/win-x86", "libvlc/win-arm64") | ForEach-Object {
+            $unusedArchitecture = Join-Path $publishDir $_
+            if (Test-Path $unusedArchitecture) {
+              Remove-Item $unusedArchitecture -Recurse -Force
+            }
+          }
       - name: Upload preview
         uses: actions/upload-artifact@v4
         with:
