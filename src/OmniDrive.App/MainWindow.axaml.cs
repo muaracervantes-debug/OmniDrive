@@ -29,6 +29,7 @@ namespace OmniDrive.App;
 public partial class MainWindow : Window
 {
     private bool _detailsVisible = true;
+    private ContextMenu? _activeFileContextMenu;
     private string? _defaultDownloadFolder;
     private TelegramFileItem? _pendingDownloadFile;
     private bool _downloadDecryptMode;
@@ -1495,7 +1496,11 @@ public partial class MainWindow : Window
 
     private void ShowTelegramFileOptions(TelegramFileItem file, Control? placementTarget = null)
     {
+        // Garante que exista somente um menu de arquivo aberto por vez.
+        _activeFileContextMenu?.Close();
+
         var menu = new ContextMenu();
+        _activeFileContextMenu = menu;
         if (file.IsFolder)
         {
             menu.Items.Add(new MenuItem
@@ -1542,7 +1547,7 @@ public partial class MainWindow : Window
             Header = "Excluir",
             Command = new RelayUiCommand(() => _ = DeleteTelegramFileAsync(file))
         });
-        menu.Open(CloudFilesList);
+        menu.Open(placementTarget ?? CloudFilesList);
     }
 
     private string GetFavoriteKey(TelegramFileItem file)
