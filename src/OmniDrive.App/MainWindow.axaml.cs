@@ -1198,16 +1198,21 @@ public partial class MainWindow : Window
                         Background = Avalonia.Media.Brush.Parse("#101010"),
                         Content = videoView
                     };
+                    // Keep the VLC media alive for the entire playback session.
+                    // Disposing it immediately after Play() can interrupt playback,
+                    // especially for media extracted from a compressed archive.
+                    Media? activeMedia = null;
                     mediaWindow.Opened += (_, _) =>
                     {
                         videoView.MediaPlayer = mediaPlayer;
-                        using var media = new Media(libVlc, new Uri(previewPath));
-                        mediaPlayer.Play(media);
+                        activeMedia = new Media(libVlc, previewPath, FromType.FromPath);
+                        mediaPlayer.Play(activeMedia);
                     };
                     var mediaTempDirectory = previewDirectory;
                     mediaWindow.Closed += (_, _) =>
                     {
                         mediaPlayer.Stop();
+                        activeMedia?.Dispose();
                         mediaPlayer.Dispose();
                         libVlc.Dispose();
                         try { Directory.Delete(mediaTempDirectory, true); } catch { }
